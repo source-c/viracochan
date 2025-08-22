@@ -1,0 +1,18 @@
+{
+  "_meta": {
+    "v": 1,
+    "t": "2025-08-22T17:32:23.362683Z",
+    "cs": "f549384de90c210cc89227e935570914d7a3aa7b9c7e60176c44efc7f0bba4d2",
+    "sig": "fe3a5bdf2d6f34f34f674b1445e3f28cde1b81a57ec1d3adc4943e3aceffec5bda06d2e1fd8fb31ef44d4e9a3f54d3fdd6964a17b91b36acbbb4d54995db8b48"
+  },
+  "content": {
+    "app_name": "Viracochan Example",
+    "counter": 1,
+    "settings": {
+      "debug": false,
+      "retries": 3,
+      "timeout": 30
+    },
+    "version": "1.0.0"
+  }
+}

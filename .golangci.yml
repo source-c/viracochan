@@ -1,0 +1,87 @@
+version: "2"
+run:
+  issues-exit-code: 1
+  tests: false
+output:
+  formats:
+    text:
+      path: stdout
+      print-linter-name: true
+      print-issued-lines: true
+linters:
+  enable:
+    - dupl
+    - goconst
+    - gocritic
+    - gocyclo
+    - gosec
+    - noctx
+    - revive
+    - whitespace
+  settings:
+    dupl:
+      threshold: 2000
+    goconst:
+      min-len: 2
+      min-occurrences: 2
+    gocyclo:
+      min-complexity: 40
+    revive:
+      severity: warning
+      rules:
+        - name: atomic
+        - name: line-length-limit
+          arguments:
+            - 150
+          severity: error
+  exclusions:
+    generated: lax
+    rules:
+      - path: (.+)\.go$
+        text: G104
+      - path: (.+)\.go$
+        text: SA1019
+      - path: (.+)\.go$
+        text: QF1008
+      - path: (.+)\.go$
+        text: ST1019
+      - path: (.+)\.go$
+        text: (comment on exported (method|function|type|const)|should have( a package)? comment|comment should be of the form)
+      - path: (.+)\.go$
+        text: should have a package comment, unless it's in another file for this package
+      - path: (.+)\.go$
+        text: Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*printf?|os\.(Un)?Setenv|.*Rollback). is not checked
+      - path: (.+)\.go$
+        text: should check returned error before deferring
+    paths:
+      - target
+      - internal/mocks
+      - third_party
+      - builtin
+      - examples
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofumpt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - alias
+      custom-order: true
+  exclusions:
+    generated: lax
+    paths:
+      - target
+      - internal/mocks
+      - third_party
+      - builtin
+      - examples
+      - third_party$
+      - builtin$
+      - examples$

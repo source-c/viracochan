@@ -1,5 +1,5 @@
 /dist
 /build
 /bin
-/.coverage.out
+/.*
 /internal/mocks/

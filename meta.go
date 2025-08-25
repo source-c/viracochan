@@ -38,18 +38,18 @@ func computeChecksum(c *Config) (string, error) {
 	tmp := *c
 	tmp.Meta.CS = ""
 	tmp.Meta.Signature = ""
-	
+
 	canonical, err := canonicalJSON(&tmp)
 	if err != nil {
 		return "", err
 	}
-	
+
 	// Append timestamp to canonical bytes (following MVPChain pattern)
 	ts := tmp.Meta.Time.UTC().Truncate(time.Microsecond).Format(time.RFC3339Nano)
 	buf := make([]byte, 0, len(canonical)+len(ts))
 	buf = append(buf, canonical...)
 	buf = append(buf, []byte(ts)...)
-	
+
 	sum := sha256.Sum256(buf)
 	return hex.EncodeToString(sum[:]), nil
 }
@@ -96,7 +96,7 @@ func (c *Config) UpdateMeta() error {
 	c.Meta.PrevCS = c.Meta.CS
 	c.Meta.CS = ""
 	c.Meta.Signature = ""
-	
+
 	cs, err := computeChecksum(c)
 	if err != nil {
 		return err
@@ -118,7 +118,7 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &tmp); err != nil {
 		return err
 	}
-	
+
 	*c = Config(tmp)
 	return nil
 }
@@ -137,14 +137,14 @@ func normalizeValue(v reflect.Value) (interface{}, error) {
 	if !v.IsValid() {
 		return nil, nil
 	}
-	
+
 	for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
 		if v.IsNil() {
 			return nil, nil
 		}
 		v = v.Elem()
 	}
-	
+
 	switch v.Kind() {
 	case reflect.Bool:
 		return v.Bool(), nil
@@ -176,7 +176,7 @@ func normalizeValue(v reflect.Value) (interface{}, error) {
 			sorted = append(sorted, k.String())
 		}
 		sort.Strings(sorted)
-		
+
 		out := make(map[string]interface{}, len(sorted))
 		for _, k := range sorted {
 			kv := v.MapIndex(reflect.ValueOf(k))
@@ -192,7 +192,7 @@ func normalizeValue(v reflect.Value) (interface{}, error) {
 			t := v.Interface().(time.Time).UTC().Truncate(time.Microsecond)
 			return t.Format(time.RFC3339Nano), nil
 		}
-		
+
 		out := make(map[string]interface{})
 		t := v.Type()
 		for i := 0; i < v.NumField(); i++ {
@@ -208,12 +208,12 @@ func normalizeValue(v reflect.Value) (interface{}, error) {
 			if name == "" {
 				name = f.Name
 			}
-			
+
 			fv := v.Field(i)
 			if strings.Contains(tag, "omitempty") && isZero(fv) {
 				continue
 			}
-			
+
 			// Special handling for json.RawMessage fields
 			if fv.Type() == reflect.TypeOf(json.RawMessage{}) && fv.Len() > 0 {
 				var parsed interface{}
@@ -247,7 +247,7 @@ func normalizeValue(v reflect.Value) (interface{}, error) {
 				}
 				return normalizeValue(reflect.ValueOf(result))
 			}
-			
+
 			if m, ok := v.Interface().(json.Marshaler); ok {
 				b, err := m.MarshalJSON()
 				if err != nil {

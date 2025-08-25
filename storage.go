@@ -32,7 +32,7 @@ func NewFileStorage(root string) (*FileStorage, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(abs, 0755); err != nil {
+	if err := os.MkdirAll(abs, 0o755); err != nil {
 		return nil, err
 	}
 	return &FileStorage{root: abs}, nil
@@ -41,7 +41,7 @@ func NewFileStorage(root string) (*FileStorage, error) {
 func (fs *FileStorage) Read(ctx context.Context, path string) ([]byte, error) {
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
-	
+
 	fullPath := filepath.Join(fs.root, path)
 	return os.ReadFile(fullPath)
 }
@@ -49,22 +49,22 @@ func (fs *FileStorage) Read(ctx context.Context, path string) ([]byte, error) {
 func (fs *FileStorage) Write(ctx context.Context, path string, data []byte) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	
+
 	fullPath := filepath.Join(fs.root, path)
 	dir := filepath.Dir(fullPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(fullPath, data, 0644)
+	return os.WriteFile(fullPath, data, 0o644)
 }
 
 func (fs *FileStorage) List(ctx context.Context, prefix string) ([]string, error) {
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
-	
+
 	searchPath := filepath.Join(fs.root, prefix)
 	var paths []string
-	
+
 	err := filepath.Walk(searchPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
@@ -78,14 +78,14 @@ func (fs *FileStorage) List(ctx context.Context, prefix string) ([]string, error
 		}
 		return nil
 	})
-	
+
 	return paths, err
 }
 
 func (fs *FileStorage) Delete(ctx context.Context, path string) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	
+
 	fullPath := filepath.Join(fs.root, path)
 	return os.Remove(fullPath)
 }
@@ -93,7 +93,7 @@ func (fs *FileStorage) Delete(ctx context.Context, path string) error {
 func (fs *FileStorage) Exists(ctx context.Context, path string) (bool, error) {
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
-	
+
 	fullPath := filepath.Join(fs.root, path)
 	_, err := os.Stat(fullPath)
 	if os.IsNotExist(err) {
@@ -118,7 +118,7 @@ func NewMemoryStorage() *MemoryStorage {
 func (ms *MemoryStorage) Read(ctx context.Context, path string) ([]byte, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	
+
 	data, ok := ms.data[path]
 	if !ok {
 		return nil, os.ErrNotExist
@@ -129,7 +129,7 @@ func (ms *MemoryStorage) Read(ctx context.Context, path string) ([]byte, error) 
 func (ms *MemoryStorage) Write(ctx context.Context, path string, data []byte) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
-	
+
 	ms.data[path] = append([]byte(nil), data...)
 	return nil
 }
@@ -137,7 +137,7 @@ func (ms *MemoryStorage) Write(ctx context.Context, path string, data []byte) er
 func (ms *MemoryStorage) List(ctx context.Context, prefix string) ([]string, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	
+
 	var paths []string
 	for path := range ms.data {
 		if strings.HasPrefix(path, prefix) {
@@ -150,7 +150,7 @@ func (ms *MemoryStorage) List(ctx context.Context, prefix string) ([]string, err
 func (ms *MemoryStorage) Delete(ctx context.Context, path string) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
-	
+
 	delete(ms.data, path)
 	return nil
 }
@@ -158,7 +158,7 @@ func (ms *MemoryStorage) Delete(ctx context.Context, path string) error {
 func (ms *MemoryStorage) Exists(ctx context.Context, path string) (bool, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	
+
 	_, ok := ms.data[path]
 	return ok, nil
 }
@@ -196,19 +196,19 @@ func (cs *ConfigStorage) Load(ctx context.Context, id string, version uint64) (*
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
-	
+
 	// Only validate if checksum is present
 	if cfg.Meta.CS != "" {
 		if err := cfg.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid config: %w", err)
 		}
 	}
-	
+
 	return &cfg, nil
 }
 
@@ -218,7 +218,7 @@ func (cs *ConfigStorage) ListVersions(ctx context.Context, id string) ([]uint64,
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var versions []uint64
 	for _, path := range paths {
 		base := filepath.Base(path)
@@ -240,14 +240,14 @@ func (cs *ConfigStorage) LoadLatest(ctx context.Context, id string) (*Config, er
 	if len(versions) == 0 {
 		return nil, os.ErrNotExist
 	}
-	
+
 	maxVersion := versions[0]
 	for _, v := range versions[1:] {
 		if v > maxVersion {
 			maxVersion = v
 		}
 	}
-	
+
 	return cs.Load(ctx, id, maxVersion)
 }
 
@@ -278,7 +278,7 @@ func (sr *StorageReader) Read(p []byte) (int, error) {
 	if sr.offset >= len(sr.data) {
 		return 0, io.EOF
 	}
-	
+
 	n := copy(p, sr.data[sr.offset:])
 	sr.offset += n
 	return n, nil

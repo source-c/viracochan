@@ -12,12 +12,12 @@ import (
 
 // Manager provides high-level configuration management
 type Manager struct {
-	storage    Storage
-	journal    *Journal
+	storage     Storage
+	journal     *Journal
 	configStore *ConfigStorage
-	signer     *Signer
-	mu         sync.RWMutex
-	cache      map[string]*Config
+	signer      *Signer
+	mu          sync.RWMutex
+	cache       map[string]*Config
 }
 
 // NewManager creates new configuration manager
@@ -28,13 +28,13 @@ func NewManager(storage Storage, opts ...ManagerOption) (*Manager, error) {
 		configStore: NewConfigStorage(storage, "configs"),
 		cache:       make(map[string]*Config),
 	}
-	
+
 	for _, opt := range opts {
 		if err := opt(m); err != nil {
 			return nil, err
 		}
 	}
-	
+
 	return m, nil
 }
 
@@ -61,33 +61,33 @@ func WithJournalPath(path string) ManagerOption {
 func (m *Manager) Create(ctx context.Context, id string, content interface{}) (*Config, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	data, err := json.Marshal(content)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	cfg := &Config{
 		Meta: Meta{
 			Version: 0,
 		},
 		Content: json.RawMessage(data),
 	}
-	
+
 	if err := cfg.UpdateMeta(); err != nil {
 		return nil, err
 	}
-	
+
 	if m.signer != nil {
 		if err := m.signer.Sign(cfg); err != nil {
 			return nil, err
 		}
 	}
-	
+
 	if err := m.configStore.Save(ctx, id, cfg); err != nil {
 		return nil, err
 	}
-	
+
 	entry := &JournalEntry{
 		ID:        id,
 		Version:   cfg.Meta.Version,
@@ -97,11 +97,11 @@ func (m *Manager) Create(ctx context.Context, id string, content interface{}) (*
 		Operation: "create",
 		Config:    cfg,
 	}
-	
+
 	if err := m.journal.Append(ctx, entry); err != nil {
 		return nil, err
 	}
-	
+
 	m.cache[id] = cfg
 	return cfg, nil
 }
@@ -110,36 +110,36 @@ func (m *Manager) Create(ctx context.Context, id string, content interface{}) (*
 func (m *Manager) Update(ctx context.Context, id string, content interface{}) (*Config, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	current, err := m.getLatest(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	data, err := json.Marshal(content)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	newCfg := &Config{
 		Meta:    current.Meta,
 		Content: json.RawMessage(data),
 	}
-	
+
 	if err := newCfg.UpdateMeta(); err != nil {
 		return nil, err
 	}
-	
+
 	if m.signer != nil {
 		if err := m.signer.Sign(newCfg); err != nil {
 			return nil, err
 		}
 	}
-	
+
 	if err := m.configStore.Save(ctx, id, newCfg); err != nil {
 		return nil, err
 	}
-	
+
 	entry := &JournalEntry{
 		ID:        id,
 		Version:   newCfg.Meta.Version,
@@ -149,11 +149,11 @@ func (m *Manager) Update(ctx context.Context, id string, content interface{}) (*
 		Operation: "update",
 		Config:    newCfg,
 	}
-	
+
 	if err := m.journal.Append(ctx, entry); err != nil {
 		return nil, err
 	}
-	
+
 	m.cache[id] = newCfg
 	return newCfg, nil
 }
@@ -162,7 +162,7 @@ func (m *Manager) Update(ctx context.Context, id string, content interface{}) (*
 func (m *Manager) Get(ctx context.Context, id string, version uint64) (*Config, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	return m.configStore.Load(ctx, id, version)
 }
 
@@ -170,7 +170,7 @@ func (m *Manager) Get(ctx context.Context, id string, version uint64) (*Config, 
 func (m *Manager) GetLatest(ctx context.Context, id string) (*Config, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	return m.getLatest(ctx, id)
 }
 
@@ -178,12 +178,12 @@ func (m *Manager) getLatest(ctx context.Context, id string) (*Config, error) {
 	if cfg, ok := m.cache[id]; ok {
 		return cfg, nil
 	}
-	
+
 	cfg, err := m.journal.Reconstruct(ctx, id, m.storage)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	m.cache[id] = cfg
 	return cfg, nil
 }
@@ -192,17 +192,17 @@ func (m *Manager) getLatest(ctx context.Context, id string) (*Config, error) {
 func (m *Manager) GetHistory(ctx context.Context, id string) ([]*Config, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	versions, err := m.configStore.ListVersions(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Sort versions to ensure correct order
 	sort.Slice(versions, func(i, j int) bool {
 		return versions[i] < versions[j]
 	})
-	
+
 	configs := make([]*Config, 0, len(versions))
 	for _, v := range versions {
 		cfg, err := m.configStore.Load(ctx, id, v)
@@ -211,7 +211,7 @@ func (m *Manager) GetHistory(ctx context.Context, id string) ([]*Config, error) 
 		}
 		configs = append(configs, cfg)
 	}
-	
+
 	return configs, nil
 }
 
@@ -219,21 +219,21 @@ func (m *Manager) GetHistory(ctx context.Context, id string) ([]*Config, error) 
 func (m *Manager) ValidateChain(ctx context.Context, id string) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	entries, err := m.journal.FindByID(ctx, id)
 	if err != nil {
 		return err
 	}
-	
+
 	if len(entries) == 0 {
 		return nil
 	}
-	
+
 	ordered, err := m.journal.Resequence(entries)
 	if err != nil {
 		return err
 	}
-	
+
 	return m.journal.ValidateChain(ordered)
 }
 
@@ -241,12 +241,12 @@ func (m *Manager) ValidateChain(ctx context.Context, id string) error {
 func (m *Manager) Reconstruct(ctx context.Context, id string) (*Config, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	cfg, err := m.journal.Reconstruct(ctx, id, m.storage)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	m.cache[id] = cfg
 	return cfg, nil
 }
@@ -255,12 +255,12 @@ func (m *Manager) Reconstruct(ctx context.Context, id string) (*Config, error) {
 func (m *Manager) Export(ctx context.Context, id string) ([]byte, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	cfg, err := m.getLatest(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return json.MarshalIndent(cfg, "", "  ")
 }
 
@@ -268,20 +268,20 @@ func (m *Manager) Export(ctx context.Context, id string) ([]byte, error) {
 func (m *Manager) Import(ctx context.Context, id string, data []byte) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return err
 	}
-	
+
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("invalid configuration: %w", err)
 	}
-	
+
 	if err := m.configStore.Save(ctx, id, &cfg); err != nil {
 		return err
 	}
-	
+
 	entry := &JournalEntry{
 		ID:        id,
 		Version:   cfg.Meta.Version,
@@ -291,11 +291,11 @@ func (m *Manager) Import(ctx context.Context, id string, data []byte) error {
 		Operation: "import",
 		Config:    &cfg,
 	}
-	
+
 	if err := m.journal.Append(ctx, entry); err != nil {
 		return err
 	}
-	
+
 	m.cache[id] = &cfg
 	return nil
 }
@@ -304,7 +304,7 @@ func (m *Manager) Import(ctx context.Context, id string, data []byte) error {
 func (m *Manager) Compact(ctx context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	return m.journal.Compact(ctx)
 }
 
@@ -312,22 +312,22 @@ func (m *Manager) Compact(ctx context.Context) error {
 func (m *Manager) List(ctx context.Context) ([]string, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	entries, err := m.journal.ReadAll(ctx)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	seen := make(map[string]bool)
 	var ids []string
-	
+
 	for _, entry := range entries {
 		if !seen[entry.ID] {
 			seen[entry.ID] = true
 			ids = append(ids, entry.ID)
 		}
 	}
-	
+
 	return ids, nil
 }
 
@@ -336,28 +336,28 @@ func (m *Manager) Verify(cfg *Config, publicKey string) error {
 	if m.signer == nil {
 		return errors.New("no signer configured")
 	}
-	
+
 	return m.signer.Verify(cfg, publicKey)
 }
 
 // Watch watches for configuration changes
 func (m *Manager) Watch(ctx context.Context, id string, interval time.Duration) (<-chan *Config, error) {
 	ch := make(chan *Config, 1)
-	
+
 	// Get initial version to avoid sending current state
 	initialCfg, err := m.GetLatest(ctx, id)
 	if err != nil {
 		// If config doesn't exist yet, start from 0
 		initialCfg = &Config{Meta: Meta{Version: 0}}
 	}
-	
+
 	go func() {
 		defer close(ch)
-		
+
 		lastVersion := initialCfg.Meta.Version
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -367,7 +367,7 @@ func (m *Manager) Watch(ctx context.Context, id string, interval time.Duration) 
 				if err != nil {
 					continue
 				}
-				
+
 				if cfg.Meta.Version > lastVersion {
 					lastVersion = cfg.Meta.Version
 					select {
@@ -379,7 +379,7 @@ func (m *Manager) Watch(ctx context.Context, id string, interval time.Duration) 
 			}
 		}
 	}()
-	
+
 	return ch, nil
 }
 
@@ -387,39 +387,39 @@ func (m *Manager) Watch(ctx context.Context, id string, interval time.Duration) 
 func (m *Manager) Rollback(ctx context.Context, id string, version uint64) (*Config, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	// Get the content from the target version
 	targetCfg, err := m.configStore.Load(ctx, id, version)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Get the latest version to continue the chain
 	latestCfg, err := m.getLatest(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Create new config with rolled back content but continuing from latest version
 	newCfg := &Config{
 		Meta:    latestCfg.Meta,
 		Content: targetCfg.Content,
 	}
-	
+
 	if err := newCfg.UpdateMeta(); err != nil {
 		return nil, err
 	}
-	
+
 	if m.signer != nil {
 		if err := m.signer.Sign(newCfg); err != nil {
 			return nil, err
 		}
 	}
-	
+
 	if err := m.configStore.Save(ctx, id, newCfg); err != nil {
 		return nil, err
 	}
-	
+
 	entry := &JournalEntry{
 		ID:        id,
 		Version:   newCfg.Meta.Version,
@@ -429,11 +429,11 @@ func (m *Manager) Rollback(ctx context.Context, id string, version uint64) (*Con
 		Operation: fmt.Sprintf("rollback_to_v%d", version),
 		Config:    newCfg,
 	}
-	
+
 	if err := m.journal.Append(ctx, entry); err != nil {
 		return nil, err
 	}
-	
+
 	m.cache[id] = newCfg
 	return newCfg, nil
 }

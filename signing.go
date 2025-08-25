@@ -24,7 +24,7 @@ func NewSigner() (*Signer, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &Signer{
 		privateKey: sk,
 		publicKey:  pk,
@@ -37,7 +37,7 @@ func NewSignerFromKey(privateKey string) (*Signer, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &Signer{
 		privateKey: privateKey,
 		publicKey:  pk,
@@ -54,13 +54,13 @@ func (s *Signer) Sign(cfg *Config) error {
 	if cfg.Meta.CS == "" {
 		return errors.New("config must have checksum before signing")
 	}
-	
+
 	message := s.makeSigningMessage(cfg)
 	sig, err := s.signMessage(message)
 	if err != nil {
 		return err
 	}
-	
+
 	cfg.Meta.Signature = sig
 	return nil
 }
@@ -70,7 +70,7 @@ func (s *Signer) Verify(cfg *Config, publicKey string) error {
 	if cfg.Meta.Signature == "" {
 		return errors.New("config has no signature")
 	}
-	
+
 	message := s.makeSigningMessage(cfg)
 	return s.verifyMessage(message, cfg.Meta.Signature, publicKey)
 }
@@ -79,7 +79,7 @@ func (s *Signer) Verify(cfg *Config, publicKey string) error {
 func (s *Signer) makeSigningMessage(cfg *Config) string {
 	// Include content hash in signing to detect tampering
 	contentHash := sha256.Sum256(cfg.Content)
-	return fmt.Sprintf("viracochan:v1:%s:%d:%s:%s", 
+	return fmt.Sprintf("viracochan:v1:%s:%d:%s:%s",
 		cfg.Meta.CS,
 		cfg.Meta.Version,
 		cfg.Meta.Time.UTC().Format(time.RFC3339Nano),
@@ -90,7 +90,7 @@ func (s *Signer) makeSigningMessage(cfg *Config) string {
 func (s *Signer) signMessage(message string) (string, error) {
 	hash := sha256.Sum256([]byte(message))
 	hashHex := hex.EncodeToString(hash[:])
-	
+
 	event := nostr.Event{
 		PubKey:    s.publicKey,
 		CreatedAt: nostr.Now(),
@@ -98,12 +98,12 @@ func (s *Signer) signMessage(message string) (string, error) {
 		Tags:      nostr.Tags{},
 		Content:   hashHex,
 	}
-	
+
 	err := event.Sign(s.privateKey)
 	if err != nil {
 		return "", err
 	}
-	
+
 	return event.Sig, nil
 }
 
@@ -111,7 +111,7 @@ func (s *Signer) signMessage(message string) (string, error) {
 func (s *Signer) verifyMessage(message, signature, publicKey string) error {
 	hash := sha256.Sum256([]byte(message))
 	hashHex := hex.EncodeToString(hash[:])
-	
+
 	event := nostr.Event{
 		PubKey:    publicKey,
 		CreatedAt: nostr.Now(),
@@ -120,7 +120,7 @@ func (s *Signer) verifyMessage(message, signature, publicKey string) error {
 		Content:   hashHex,
 		Sig:       signature,
 	}
-	
+
 	ok, err := event.CheckSignature()
 	if err != nil {
 		return err
@@ -128,7 +128,7 @@ func (s *Signer) verifyMessage(message, signature, publicKey string) error {
 	if !ok {
 		return errors.New("invalid signature")
 	}
-	
+
 	return nil
 }
 
@@ -149,15 +149,15 @@ func NewSignedConfig(cfg *Config, signer *Signer) *SignedConfig {
 // Update updates config and signs it
 func (sc *SignedConfig) Update(content json.RawMessage) error {
 	sc.Content = content
-	
+
 	if err := sc.UpdateMeta(); err != nil {
 		return err
 	}
-	
+
 	if sc.signer != nil {
 		return sc.signer.Sign(sc.Config)
 	}
-	
+
 	return nil
 }
 
@@ -172,16 +172,16 @@ func (sc *SignedConfig) VerifySignature(publicKey string) error {
 // VerifyChainSignatures verifies all signatures in a config chain
 func VerifyChainSignatures(configs []*Config, publicKey string) error {
 	signer := &Signer{}
-	
+
 	for i, cfg := range configs {
 		if cfg.Meta.Signature == "" {
 			continue
 		}
-		
+
 		if err := signer.Verify(cfg, publicKey); err != nil {
 			return fmt.Errorf("signature verification failed at index %d: %w", i, err)
 		}
 	}
-	
+
 	return nil
 }

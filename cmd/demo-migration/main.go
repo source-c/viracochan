@@ -436,13 +436,18 @@ func main() {
 	// Phase 6: Cross-storage verification
 	fmt.Println("\n--- Cross-Storage Verification ---")
 
-	sourceLatest, _ := sourceManager.GetLatest(ctx, configID)
-	targetLatest, _ := targetManager.GetLatest(ctx, configID)
+	sourceLatest, sourceErr := sourceManager.GetLatest(ctx, configID)
+	targetLatest, targetErr := targetManager.GetLatest(ctx, configID)
 
-	if sourceLatest.Meta.CS == targetLatest.Meta.CS {
+	switch {
+	case sourceErr != nil || targetErr != nil:
+		fmt.Printf("⚠ Cannot verify checksums - source error: %v, target error: %v\n", sourceErr, targetErr)
+	case sourceLatest != nil && targetLatest != nil && sourceLatest.Meta.CS == targetLatest.Meta.CS:
 		fmt.Println("✓ Source and target checksums match")
-	} else {
+	case sourceLatest != nil && targetLatest != nil:
 		fmt.Println("✗ Checksum mismatch between source and target!")
+	default:
+		fmt.Println("⚠ One or both configs are nil")
 	}
 
 	// Storage statistics

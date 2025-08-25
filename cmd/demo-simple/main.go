@@ -60,7 +60,9 @@ func main() {
 
 		// Show current content
 		var content map[string]interface{}
-		json.Unmarshal(existing.Content, &content)
+		if err := json.Unmarshal(existing.Content, &content); err != nil {
+			log.Printf("Failed to unmarshal content: %v", err)
+		}
 		fmt.Printf("Current content: %+v\n\n", content)
 
 		// Update configuration
@@ -75,7 +77,6 @@ func main() {
 		fmt.Printf("Updated to version %d\n", updated.Meta.Version)
 		fmt.Printf("Checksum: %s\n", updated.Meta.CS[:16]+"...")
 		fmt.Printf("Previous: %s\n", updated.Meta.PrevCS[:16]+"...")
-
 	} else {
 		fmt.Println("Creating new configuration")
 
@@ -130,7 +131,7 @@ func main() {
 
 	// Save to file
 	exportFile := fmt.Sprintf("%s-export.json", configID)
-	if err := os.WriteFile(exportFile, exported, 0o644); err != nil {
+	if err := os.WriteFile(exportFile, exported, 0o600); err != nil {
 		log.Fatal("Failed to save export:", err)
 	}
 

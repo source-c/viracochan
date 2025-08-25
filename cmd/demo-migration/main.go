@@ -119,7 +119,9 @@ func (c *CachedStorage) Read(ctx context.Context, path string) ([]byte, error) {
 	}
 
 	// Update cache
-	c.cache.Write(ctx, path, data)
+	if err := c.cache.Write(ctx, path, data); err != nil {
+		log.Printf("Failed to write to cache: %v", err)
+	}
 	return data, nil
 }
 
@@ -136,7 +138,9 @@ func (c *CachedStorage) List(ctx context.Context, prefix string) ([]string, erro
 }
 
 func (c *CachedStorage) Delete(ctx context.Context, path string) error {
-	c.cache.Delete(ctx, path)
+	if err := c.cache.Delete(ctx, path); err != nil {
+		log.Printf("Failed to delete from cache: %v", err)
+	}
 	return c.primary.Delete(ctx, path)
 }
 
@@ -170,7 +174,7 @@ func main() {
 	os.RemoveAll(*s3Dir)
 
 	fmt.Println("=== Storage Migration Demo ===")
-	fmt.Println("Demonstrating migration between different storage backends\n")
+	fmt.Println("Demonstrating migration between different storage backends")
 
 	// Phase 1: Create initial configuration in file storage
 	fmt.Println("--- Phase 1: Creating Initial Configuration ---")
@@ -422,7 +426,9 @@ func main() {
 			fmt.Printf("  ✗ Failed to get latest: %v\n", err)
 		} else {
 			var content map[string]interface{}
-			json.Unmarshal(latest.Content, &content)
+			if err := json.Unmarshal(latest.Content, &content); err != nil {
+				log.Printf("Failed to unmarshal content: %v", err)
+			}
 			fmt.Printf("  ✓ Latest version %d loaded\n", latest.Meta.Version)
 		}
 	}
@@ -543,7 +549,9 @@ func validateAndMigrate(ctx context.Context, source, target viracochan.Storage, 
 		if err != nil {
 			continue
 		}
-		target.Write(ctx, file, data)
+		if err := target.Write(ctx, file, data); err != nil {
+			log.Printf("Failed to write journal file %s: %v", file, err)
+		}
 	}
 
 	fmt.Printf("  ✓ Migrated %d journal files\n", len(journals))
@@ -553,7 +561,7 @@ func validateAndMigrate(ctx context.Context, source, target viracochan.Storage, 
 
 func countStorageFiles(dir string) int {
 	count := 0
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err == nil && !info.IsDir() {
 			count++
 		}

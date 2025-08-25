@@ -30,7 +30,7 @@ func main() {
 	os.RemoveAll(*dataDir)
 
 	fmt.Println("=== Disaster Recovery Demo ===")
-	fmt.Println("Simulating various failure scenarios and recovery methods\n")
+	fmt.Println("Simulating various failure scenarios and recovery methods")
 
 	// Phase 1: Create healthy system with configuration history
 	fmt.Println("--- Phase 1: Building Configuration History ---")
@@ -293,22 +293,18 @@ func main() {
 	allConfigs := make(map[uint64]*viracochan.Config)
 
 	// From journal entries
-	if entries != nil {
-		for _, entry := range entries {
-			if entry.Config != nil && entry.ID == configID {
-				allConfigs[entry.Version] = entry.Config
-			}
+	for _, entry := range entries {
+		if entry.Config != nil && entry.ID == configID {
+			allConfigs[entry.Version] = entry.Config
 		}
 	}
 
 	// From scattered files
-	if foundVersions != nil {
-		for _, v := range foundVersions {
-			if _, exists := allConfigs[v]; !exists {
-				cfg, err := configStore.Load(ctx, configID, v)
-				if err == nil && cfg.Validate() == nil {
-					allConfigs[v] = cfg
-				}
+	for _, v := range foundVersions {
+		if _, exists := allConfigs[v]; !exists {
+			cfg, err := configStore.Load(ctx, configID, v)
+			if err == nil && cfg.Validate() == nil {
+				allConfigs[v] = cfg
 			}
 		}
 	}
@@ -375,7 +371,9 @@ func main() {
 
 			// Show recovered content
 			var content map[string]interface{}
-			json.Unmarshal(reconstructed.Content, &content)
+			if err := json.Unmarshal(reconstructed.Content, &content); err != nil {
+				log.Printf("Failed to unmarshal content: %v", err)
+			}
 			fmt.Printf("\nRecovered configuration (version %s):\n", content["version"])
 			prettyJSON, _ := json.MarshalIndent(content, "  ", "  ")
 			fmt.Printf("  %s\n", prettyJSON)
@@ -399,11 +397,12 @@ func main() {
 
 	// Final status
 	fmt.Println("\n=== Recovery Summary ===")
-	if rebuiltCount == len(versions) {
+	switch {
+	case rebuiltCount == len(versions):
 		fmt.Println("✓ Full recovery successful - all versions recovered")
-	} else if rebuiltCount > 0 {
+	case rebuiltCount > 0:
 		fmt.Printf("⚠ Partial recovery - recovered %d/%d versions\n", rebuiltCount, len(versions))
-	} else {
+	default:
 		fmt.Println("✗ Recovery failed - no versions recovered")
 	}
 
@@ -411,6 +410,7 @@ func main() {
 }
 
 func corruptJournal(path string) {
+	// #nosec G304 - path is controlled and used only for demo corruption simulation
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return
@@ -419,6 +419,7 @@ func corruptJournal(path string) {
 	lines := strings.Split(string(data), "\n")
 	if len(lines) > 2 {
 		// Corrupt a random line
+		// #nosec G404 - weak RNG is fine for demo corruption simulation
 		idx := rand.Intn(len(lines)-1) + 1
 		if lines[idx] != "" {
 			// Corrupt the JSON by removing closing brace
@@ -429,7 +430,9 @@ func corruptJournal(path string) {
 	// Add some garbage data
 	lines = append(lines, "CORRUPTED_DATA_HERE", "{invalid json}")
 
-	os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644)
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o600); err != nil {
+		log.Printf("Failed to write corrupted file: %v", err)
+	}
 }
 
 func deleteRandomConfigs(dataDir, configID string) {
@@ -446,6 +449,7 @@ func deleteRandomConfigs(dataDir, configID string) {
 	}
 
 	for i := 0; i < deleteCount && i < len(files); i++ {
+		// #nosec G404 - weak RNG is fine for demo file deletion simulation
 		idx := rand.Intn(len(files))
 		os.Remove(files[idx])
 		files = append(files[:idx], files[idx+1:]...)
@@ -465,15 +469,20 @@ func createDuplicateEntries(storage viracochan.Storage, configID string) {
 		Time:      time.Now(),
 		Operation: "duplicate",
 	}
-	journal.Append(ctx, entry)
+	if err := journal.Append(ctx, entry); err != nil {
+		log.Printf("Failed to append journal entry: %v", err)
+	}
 }
 
 func scrambleTimestamps(dataDir string) {
 	// This simulates clock skew or filesystem timestamp corruption
 	files, _ := filepath.Glob(filepath.Join(dataDir, "configs", "*", "*.json"))
 	for _, file := range files {
+		// #nosec G404 - weak RNG is fine for demo timestamp simulation
 		randomTime := time.Now().Add(time.Duration(rand.Intn(3600)) * time.Second)
-		os.Chtimes(file, randomTime, randomTime)
+		if err := os.Chtimes(file, randomTime, randomTime); err != nil {
+			log.Printf("Failed to change file times: %v", err)
+		}
 	}
 }
 

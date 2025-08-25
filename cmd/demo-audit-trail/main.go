@@ -131,6 +131,7 @@ func (c *ComplianceChecker) Check(cfg *viracochan.Config) map[string]bool {
 	return results
 }
 
+// nolint:gocyclo // complex logic is fine for demo
 func main() {
 	var (
 		dataDir = flag.String("dir", "./audit-demo", "data directory")
@@ -204,7 +205,7 @@ func main() {
 	}
 
 	// Record audit event
-	auditLog.Record(AuditEvent{
+	if err := auditLog.Record(AuditEvent{
 		Timestamp:       time.Now(),
 		Actor:           actorNames[0],
 		Action:          "CREATE",
@@ -214,7 +215,9 @@ func main() {
 		Signature:       cfg.Meta.Signature,
 		Verified:        true,
 		ComplianceFlags: complianceChecker.Check(cfg),
-	})
+	}); err != nil {
+		log.Printf("Failed to record audit event: %v", err)
+	}
 
 	fmt.Printf("✓ %s created v%d (signed)\n", actorNames[0], cfg.Meta.Version)
 
@@ -320,7 +323,9 @@ func main() {
 
 		// Merge changes
 		var content map[string]interface{}
-		json.Unmarshal(current.Content, &content)
+		if err := json.Unmarshal(current.Content, &content); err != nil {
+			log.Printf("Failed to unmarshal content: %v", err)
+		}
 		for k, v := range update.changes {
 			content[k] = v
 		}
@@ -356,7 +361,7 @@ func main() {
 		}
 
 		// Record audit event
-		auditLog.Record(AuditEvent{
+		if err := auditLog.Record(AuditEvent{
 			Timestamp:       time.Now(),
 			Actor:           actorNames[update.actor],
 			Action:          "UPDATE",
@@ -367,7 +372,9 @@ func main() {
 			Signature:       newCfg.Meta.Signature,
 			Verified:        verified,
 			ComplianceFlags: complianceChecker.Check(newCfg),
-		})
+		}); err != nil {
+			log.Printf("Failed to record audit event: %v", err)
+		}
 
 		time.Sleep(100 * time.Millisecond) // Ensure different timestamps
 	}
@@ -387,7 +394,7 @@ func main() {
 			rollbackVersion, rolledBack.Meta.Version)
 
 		// Record rollback audit event
-		auditLog.Record(AuditEvent{
+		if err := auditLog.Record(AuditEvent{
 			Timestamp:       time.Now(),
 			Actor:           actorNames[0],
 			Action:          fmt.Sprintf("ROLLBACK_TO_V%d", rollbackVersion),
@@ -397,7 +404,9 @@ func main() {
 			Signature:       rolledBack.Meta.Signature,
 			Verified:        true,
 			ComplianceFlags: complianceChecker.Check(rolledBack),
-		})
+		}); err != nil {
+			log.Printf("Failed to record audit event: %v", err)
+		}
 	}
 
 	// Phase 4: Chain verification
@@ -445,7 +454,7 @@ func main() {
 		}
 
 		// Record verification audit
-		auditLog.Record(AuditEvent{
+		if err := auditLog.Record(AuditEvent{
 			Timestamp:       time.Now(),
 			Actor:           "SYSTEM",
 			Action:          "VERIFY",
@@ -455,7 +464,9 @@ func main() {
 			Signature:       cfg.Meta.Signature,
 			Verified:        signatureValid,
 			ComplianceFlags: complianceChecker.Check(cfg),
-		})
+		}); err != nil {
+			log.Printf("Failed to record audit event: %v", err)
+		}
 	}
 
 	// Phase 5: Compliance Report
@@ -527,7 +538,7 @@ func main() {
 	}
 
 	auditFile := filepath.Join(*dataDir, "complete-audit.json")
-	if err := os.WriteFile(auditFile, auditData, 0o644); err != nil {
+	if err := os.WriteFile(auditFile, auditData, 0o600); err != nil {
 		log.Fatal("Failed to save audit log:", err)
 	}
 
@@ -549,11 +560,12 @@ func main() {
 	complianceRate := float64(compliantCount) / float64(len(auditLog.Events)) * 100
 
 	fmt.Printf("Compliance Rate: %.1f%%\n", complianceRate)
-	if complianceRate >= 90 {
+	switch {
+	case complianceRate >= 90:
 		fmt.Println("Status: ✓ COMPLIANT")
-	} else if complianceRate >= 70 {
+	case complianceRate >= 70:
 		fmt.Println("Status: ⚠ PARTIALLY COMPLIANT")
-	} else {
+	default:
 		fmt.Println("Status: ✗ NON-COMPLIANT")
 	}
 

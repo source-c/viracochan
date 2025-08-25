@@ -69,8 +69,12 @@ func (cr *ConflictResolver) Resolve(w1, w2 *Worker, cfg1, cfg2 *viracochan.Confi
 	case "merge":
 		// Simple merge strategy: combine both configs
 		var content1, content2 map[string]interface{}
-		json.Unmarshal(cfg1.Content, &content1)
-		json.Unmarshal(cfg2.Content, &content2)
+		if err := json.Unmarshal(cfg1.Content, &content1); err != nil {
+			log.Printf("Failed to unmarshal cfg1 content: %v", err)
+		}
+		if err := json.Unmarshal(cfg2.Content, &content2); err != nil {
+			log.Printf("Failed to unmarshal cfg2 content: %v", err)
+		}
 
 		// Merge content2 into content1
 		for k, v := range content2 {
@@ -82,12 +86,15 @@ func (cr *ConflictResolver) Resolve(w1, w2 *Worker, cfg1, cfg2 *viracochan.Confi
 			Meta:    cfg1.Meta,
 			Content: mustMarshal(content1),
 		}
-		winner.UpdateMeta()
+		if err := winner.UpdateMeta(); err != nil {
+			log.Printf("Failed to update meta: %v", err)
+		}
 		resolution = "Merged both changes"
 
 	case "manual":
 		// In real system, this would prompt user
 		// For demo, randomly pick one
+		// #nosec G404 - weak RNG is fine for demo conflict resolution
 		if rand.Intn(2) == 0 {
 			winner = cfg1
 			resolution = fmt.Sprintf("%s selected (manual)", w1.Name)
@@ -223,7 +230,9 @@ func main() {
 	for i, worker := range workerList {
 		ch, err := worker.Manager.Watch(watchCtx, configID, 100*time.Millisecond)
 		if err != nil {
-			log.Fatal("Failed to setup watch:", err)
+			log.Printf("Failed to setup watch: %v", err)
+			watchCancel()
+			return
 		}
 		watchers[i] = ch
 
@@ -323,8 +332,12 @@ func main() {
 
 	// Both prepare updates
 	var content0, content1 map[string]interface{}
-	json.Unmarshal(current0.Content, &content0)
-	json.Unmarshal(current1.Content, &content1)
+	if err := json.Unmarshal(current0.Content, &content0); err != nil {
+		log.Printf("Failed to unmarshal content0: %v", err)
+	}
+	if err := json.Unmarshal(current1.Content, &content1); err != nil {
+		log.Printf("Failed to unmarshal content1: %v", err)
+	}
 
 	content0["conflict_test"] = "worker0_value"
 	content1["conflict_test"] = "worker1_value"
@@ -353,7 +366,9 @@ func main() {
 
 		// Apply resolution
 		var resolvedContent map[string]interface{}
-		json.Unmarshal(resolved.Content, &resolvedContent)
+		if err := json.Unmarshal(resolved.Content, &resolvedContent); err != nil {
+			log.Printf("Failed to unmarshal resolved content: %v", err)
+		}
 		cfg1, err = workerList[1].Manager.Update(ctx, configID, resolvedContent)
 		if err == nil {
 			fmt.Printf("Resolution applied as v%d\n", cfg1.Meta.Version)
@@ -383,7 +398,9 @@ func main() {
 		checksums[latest.Meta.CS]++
 
 		var content map[string]interface{}
-		json.Unmarshal(latest.Content, &content)
+		if err := json.Unmarshal(latest.Content, &content); err != nil {
+			log.Printf("Failed to unmarshal content: %v", err)
+		}
 
 		// Count worker-specific updates
 		workerKey := fmt.Sprintf("worker_%d", worker.ID)
@@ -513,7 +530,9 @@ func performUpdate(ctx context.Context, w *Worker, configID string, conflictChan
 	}
 
 	// Add some random data to increase chance of conflicts
+	// #nosec G404 - weak RNG is fine for demo data generation
 	if rand.Float32() < 0.3 {
+		// #nosec G404 - weak RNG is fine for demo data generation
 		content["random"] = rand.Intn(100)
 	}
 

@@ -232,7 +232,7 @@ func (is *IntegrityStorage) Write(ctx context.Context, path string, data []byte)
 	checksum := hex.EncodeToString(hash[:])
 
 	// Combine data with checksum
-	combined := append(data, []byte("\n---CHECKSUM---\n"+checksum)...)
+	combined := append(data, []byte("\n---CHECKSUM---\n"+checksum)...) //nolint:gocritic // appendAssign is intended here
 
 	is.mu.Lock()
 	is.checksums[path] = checksum
@@ -293,7 +293,7 @@ func main() {
 	os.RemoveAll(*dataDir)
 
 	fmt.Println("=== Encrypted Storage Demo ===")
-	fmt.Println("Demonstrating encryption, compression, and integrity layers\n")
+	fmt.Println("Demonstrating encryption, compression, and integrity layers")
 
 	// Generate or parse encryption key
 	var encKey []byte
@@ -490,7 +490,9 @@ func main() {
 	for i := 1; i <= 3; i++ {
 		var current map[string]interface{}
 		latest, _ := manager.GetLatest(ctx, configID)
-		json.Unmarshal(latest.Content, &current)
+		if err := json.Unmarshal(latest.Content, &current); err != nil {
+			log.Printf("Failed to unmarshal content: %v", err)
+		}
 
 		current["version"] = fmt.Sprintf("1.0.%d", i)
 		current["updated_at"] = time.Now().UTC().Format(time.RFC3339)
@@ -579,7 +581,9 @@ func main() {
 		fmt.Printf("✗ Failed to read final config: %v\n", err)
 	} else {
 		var content map[string]interface{}
-		json.Unmarshal(finalCfg.Content, &content)
+		if err := json.Unmarshal(finalCfg.Content, &content); err != nil {
+			log.Printf("Failed to unmarshal content: %v", err)
+		}
 
 		if creds, ok := content["credentials"].(map[string]interface{}); ok {
 			if apiKey, ok := creds["api_key"].(string); ok && apiKey == "sk-1234567890abcdef" {

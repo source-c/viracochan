@@ -88,7 +88,9 @@ func main() {
 
 		// Update configuration
 		var current map[string]interface{}
-		json.Unmarshal(cfg.Content, &current)
+		if err := json.Unmarshal(cfg.Content, &current); err != nil {
+			log.Printf("Failed to unmarshal content: %v", err)
+		}
 
 		// Modify based on iteration
 		switch i {
@@ -229,7 +231,9 @@ func main() {
 	watchNode := nodes[len(nodes)-1]
 	ch, err := watchNode.Manager.Watch(watchCtx, "cluster-config", 500*time.Millisecond)
 	if err != nil {
-		log.Fatal("Failed to setup watch:", err)
+		log.Printf("Failed to setup watch: %v", err)
+		cancel()
+		return
 	}
 
 	fmt.Printf("%s watching for changes...\n", watchNode.ID)
@@ -241,7 +245,9 @@ func main() {
 
 		var current map[string]interface{}
 		latest, _ := nodes[0].Manager.GetLatest(ctx, "cluster-config")
-		json.Unmarshal(latest.Content, &current)
+		if err := json.Unmarshal(latest.Content, &current); err != nil {
+			log.Printf("Failed to unmarshal content: %v", err)
+		}
 
 		current["emergency"] = map[string]interface{}{
 			"maintenance": true,
@@ -249,7 +255,9 @@ func main() {
 			"timestamp":   time.Now().UTC().Format(time.RFC3339),
 		}
 
-		nodes[0].Manager.Update(ctx, "cluster-config", current)
+		if _, err := nodes[0].Manager.Update(ctx, "cluster-config", current); err != nil {
+			log.Printf("Failed to update cluster config: %v", err)
+		}
 	}()
 
 	// Wait for update
@@ -258,7 +266,9 @@ func main() {
 		fmt.Printf("✓ %s detected update to v%d\n", watchNode.ID, updated.Meta.Version)
 
 		var content map[string]interface{}
-		json.Unmarshal(updated.Content, &content)
+		if err := json.Unmarshal(updated.Content, &content); err != nil {
+			log.Printf("Failed to unmarshal content: %v", err)
+		}
 		if emergency, ok := content["emergency"]; ok {
 			fmt.Printf("  Emergency update: %v\n", emergency)
 		}

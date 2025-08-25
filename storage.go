@@ -32,7 +32,7 @@ func NewFileStorage(root string) (*FileStorage, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(abs, 0o755); err != nil {
+	if err := os.MkdirAll(abs, 0o750); err != nil {
 		return nil, err
 	}
 	return &FileStorage{root: abs}, nil
@@ -43,7 +43,11 @@ func (fs *FileStorage) Read(ctx context.Context, path string) ([]byte, error) {
 	defer fs.mu.RUnlock()
 
 	fullPath := filepath.Join(fs.root, path)
-	return os.ReadFile(fullPath)
+	// Validate path to prevent directory traversal
+	if !strings.HasPrefix(filepath.Clean(fullPath), fs.root) {
+		return nil, fmt.Errorf("invalid path: potential directory traversal")
+	}
+	return os.ReadFile(fullPath) // #nosec G304 - path is validated above
 }
 
 func (fs *FileStorage) Write(ctx context.Context, path string, data []byte) error {
@@ -52,10 +56,10 @@ func (fs *FileStorage) Write(ctx context.Context, path string, data []byte) erro
 
 	fullPath := filepath.Join(fs.root, path)
 	dir := filepath.Dir(fullPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
-	return os.WriteFile(fullPath, data, 0o644)
+	return os.WriteFile(fullPath, data, 0o600)
 }
 
 func (fs *FileStorage) List(ctx context.Context, prefix string) ([]string, error) {

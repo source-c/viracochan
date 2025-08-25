@@ -53,7 +53,7 @@ func (j *Journal) Append(ctx context.Context, entry *JournalEntry) error {
 		existing = append(existing, '\n')
 	}
 
-	newData := append(existing, data...)
+	newData := append(existing, data...) //nolint:gocritic // appendAssign is intended here
 	newData = append(newData, '\n')
 
 	return j.storage.Write(ctx, j.path, newData)

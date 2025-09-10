@@ -1,6 +1,6 @@
 # Viracochan
 
-A Go library for versioned configuration management with cryptographic integrity, journaling, and state reconstruction capabilities.
+A Go library for versioned configuration management with cryptographic integrity, journaling, and state reconstruction capabilities. Heavily inspired by [this article](https://canny.substack.com/p/merkleforest-privacy) .
 
 ## Features
 

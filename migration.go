@@ -13,19 +13,20 @@ import (
 
 // SignatureMigrationOptions controls legacy signature migration behavior.
 type SignatureMigrationOptions struct {
+	// DryRun reports what would change without writing any files.
 	DryRun bool
 }
 
 // SignatureMigrationReport summarizes a legacy signature migration run.
 type SignatureMigrationReport struct {
-	ConfigFilesScanned        int
-	ConfigFilesMigrated       int
-	ConfigFilesAlreadyCurrent int
-	ConfigFilesUnsigned       int
-	JournalEntriesScanned     int
-	JournalEntriesMigrated    int
-	JournalEntriesCurrent     int
-	JournalEntriesUnsigned    int
+	ConfigFilesScanned        int // Total config files examined.
+	ConfigFilesMigrated       int // Config files re-signed with the v2 format.
+	ConfigFilesAlreadyCurrent int // Config files that already have a valid v2 signature.
+	ConfigFilesUnsigned       int // Config files with no signature.
+	JournalEntriesScanned     int // Total journal entries examined.
+	JournalEntriesMigrated    int // Journal entries re-signed with the v2 format.
+	JournalEntriesCurrent     int // Journal entries that already have a valid v2 signature.
+	JournalEntriesUnsigned    int // Journal entries with no signature.
 }
 
 // MigrateLegacyConfig upgrades a legacy v0.1.x signature to the v0.2.0 native

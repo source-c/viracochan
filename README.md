@@ -128,43 +128,74 @@ type Storage interface {
 
 ## Cryptographic Signing
 
-Enable native secp256k1 Schnorr signatures for authentication:
+Enable native secp256k1 Schnorr signatures for authentication.
+
+Signed configs carry two metadata fields: `sig` (the hex-encoded Schnorr
+signature) and `sig_alg` (currently `"vc-schnorr-secp256k1-v2"`, exposed as
+the `SignatureAlgorithmV2` constant). Both fields are excluded from the
+checksum calculation so signing never alters the integrity chain.
 
 ```go
-// Create signer
+// Create signer (generates a new keypair)
 signer, err := viracochan.NewSigner()
 
-// Or use existing private key
+// Or recreate from an existing hex-encoded private key
 signer, err := viracochan.NewSignerFromKey(privateKey)
 
-// Create manager with signing
+// Create manager with signing — all Create/Update calls will be signed
 manager, err := viracochan.NewManager(
     storage,
     viracochan.WithSigner(signer),
 )
 
-// Verify signatures
+// Verify via manager
 err = manager.Verify(cfg, signer.PublicKey())
+
+// Or verify without a Signer instance (only the public key is needed)
+err = viracochan.VerifyConfigSignature(cfg, publicKey)
 ```
+
+If a config's `SigAlg` contains an unrecognised value, verification returns
+`ErrUnsupportedSignatureAlgorithm`.
 
 ### Migrating From v0.1.x
 
-`v0.2.0` changes the signature format. Legacy `v0.1.x` signatures can be
-re-signed in place with the migration helper:
+`v0.2.0` replaces the legacy nostr-event signature format with native Schnorr
+signatures. Legacy signatures cannot be verified at rest (the nostr event's
+`CreatedAt` timestamp was never persisted), so the migrator trusts the checksum
+chain for integrity and re-signs each config with the v2 format.
+
+**Batch migration** (all configs and journal entries):
 
 ```go
-report, err := manager.MigrateLegacySignatures(ctx, viracochan.SignatureMigrationOptions{})
+// Preview changes without writing
+report, err := manager.MigrateLegacySignatures(ctx, viracochan.SignatureMigrationOptions{
+    DryRun: true,
+})
+fmt.Println(report) // prints per-category counters
+
+// Apply migration
+report, err = manager.MigrateLegacySignatures(ctx, viracochan.SignatureMigrationOptions{})
 ```
 
-For file-based storage, use the CLI:
+The returned `SignatureMigrationReport` contains counters for configs and
+journal entries that were migrated, already current, or unsigned.
+
+**Single-config migration** (useful outside the manager):
+
+```go
+err := viracochan.MigrateLegacyConfig(cfg, signer)
+```
+
+**CLI tool** for file-based storage:
 
 ```bash
+# Dry-run first
+go run ./cmd/migrate-signatures -dir /var/lib/myapp/configs -private-key <hex-key> -dry-run
+
+# Apply
 go run ./cmd/migrate-signatures -dir /var/lib/myapp/configs -private-key <hex-key>
 ```
-
-The migrator validates config integrity and re-signs trusted local artifacts
-with the new format. It does not reconstruct the missing event metadata from
-`v0.1.x`.
 
 ## Advanced Usage
 
@@ -233,16 +264,19 @@ err = manager.Compact(ctx)
 The library provides comprehensive validation:
 
 ```go
-// Validate single configuration
+// Validate single configuration (checksum integrity)
 err = cfg.Validate()
 
-// Validate chain continuity
+// Validate chain continuity between two versions
 err = cfg2.NextOf(cfg1)
 
-// Validate entire chain
+// Validate entire chain via the manager
 err = manager.ValidateChain(ctx, "config-id")
 
-// Verify signatures in chain
+// Verify a single config's signature (no Signer instance needed)
+err = viracochan.VerifyConfigSignature(cfg, publicKey)
+
+// Verify all signatures in a chain
 configs, _ := manager.GetHistory(ctx, "config-id")
 err = viracochan.VerifyChainSignatures(configs, publicKey)
 ```

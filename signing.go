@@ -17,6 +17,8 @@ const (
 	SignatureAlgorithmV2 = "vc-schnorr-secp256k1-v2"
 )
 
+// ErrUnsupportedSignatureAlgorithm is returned when a config's SigAlg field
+// contains an unrecognised algorithm identifier.
 var ErrUnsupportedSignatureAlgorithm = errors.New("unsupported signature algorithm")
 
 // Signer provides cryptographic signing capabilities.

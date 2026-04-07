@@ -9,7 +9,7 @@ A Go library for versioned configuration management with cryptographic integrity
 - **Chain Validation**: Each version links to its predecessor via checksums
 - **Journaling**: All changes are recorded in an append-only journal
 - **State Reconstruction**: Rebuild state from scattered data sources
-- **Optional Signing**: Nostr-style secp256k1 signatures for authenticity
+- **Optional Signing**: Native secp256k1 Schnorr signatures for authenticity
 - **Storage Abstraction**: Works with any filesystem-like storage backend
 - **Deterministic Checksums**: Canonical JSON ensures reproducible checksums
 
@@ -72,6 +72,7 @@ type Meta struct {
     PrevCS    string    `json:"prev_cs,omitempty"` // Previous version's checksum
     CS        string    `json:"cs"`                // Current checksum
     Signature string    `json:"sig,omitempty"`     // Optional cryptographic signature
+    SigAlg    string    `json:"sig_alg,omitempty"` // Signature algorithm identifier
 }
 ```
 
@@ -127,7 +128,7 @@ type Storage interface {
 
 ## Cryptographic Signing
 
-Enable Nostr-style secp256k1 signatures for authentication:
+Enable native secp256k1 Schnorr signatures for authentication:
 
 ```go
 // Create signer
@@ -145,6 +146,25 @@ manager, err := viracochan.NewManager(
 // Verify signatures
 err = manager.Verify(cfg, signer.PublicKey())
 ```
+
+### Migrating From v0.1.x
+
+`v0.2.0` changes the signature format. Legacy `v0.1.x` signatures can be
+re-signed in place with the migration helper:
+
+```go
+report, err := manager.MigrateLegacySignatures(ctx, viracochan.SignatureMigrationOptions{})
+```
+
+For file-based storage, use the CLI:
+
+```bash
+go run ./cmd/migrate-signatures -dir /var/lib/myapp/configs -private-key <hex-key>
+```
+
+The migrator validates config integrity and re-signs trusted local artifacts
+with the new format. It does not reconstruct the missing event metadata from
+`v0.1.x`.
 
 ## Advanced Usage
 
@@ -272,4 +292,3 @@ Run with race detection:
 ```bash
 go test -race ./...
 ```
-

@@ -34,6 +34,35 @@ func TestConfigValidation(t *testing.T) {
 		t.Error("Expected validation to fail with invalid checksum")
 	}
 	cfg.Meta.CS = oldCS
+
+	cfg.Meta.Signature = "opaque"
+	cfg.Meta.SigAlg = SignatureAlgorithmV2
+	if err := cfg.Validate(); err != nil {
+		t.Errorf("Validation should ignore signature metadata: %v", err)
+	}
+}
+
+func TestUpdateMetaClearsSignatureFields(t *testing.T) {
+	cfg := &Config{
+		Content: json.RawMessage(`{"key": "value"}`),
+		Meta: Meta{
+			Version:   1,
+			CS:        "prev",
+			Signature: "sig",
+			SigAlg:    SignatureAlgorithmV2,
+		},
+	}
+
+	if err := cfg.UpdateMeta(); err != nil {
+		t.Fatalf("UpdateMeta failed: %v", err)
+	}
+
+	if cfg.Meta.Signature != "" {
+		t.Errorf("expected signature to be cleared, got %q", cfg.Meta.Signature)
+	}
+	if cfg.Meta.SigAlg != "" {
+		t.Errorf("expected sig_alg to be cleared, got %q", cfg.Meta.SigAlg)
+	}
 }
 
 func TestConfigChain(t *testing.T) {

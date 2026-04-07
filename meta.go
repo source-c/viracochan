@@ -25,6 +25,7 @@ type Meta struct {
 	PrevCS    string    `json:"prev_cs,omitempty"`
 	CS        string    `json:"cs"`
 	Signature string    `json:"sig,omitempty"`
+	SigAlg    string    `json:"sig_alg,omitempty"`
 }
 
 // Config represents a configuration with metadata and arbitrary content
@@ -38,6 +39,7 @@ func computeChecksum(c *Config) (string, error) {
 	tmp := *c
 	tmp.Meta.CS = ""
 	tmp.Meta.Signature = ""
+	tmp.Meta.SigAlg = ""
 
 	canonical, err := canonicalJSON(&tmp)
 	if err != nil {
@@ -96,6 +98,7 @@ func (c *Config) UpdateMeta() error {
 	c.Meta.PrevCS = c.Meta.CS
 	c.Meta.CS = ""
 	c.Meta.Signature = ""
+	c.Meta.SigAlg = ""
 
 	cs, err := computeChecksum(c)
 	if err != nil {

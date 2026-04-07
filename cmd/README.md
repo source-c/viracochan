@@ -123,6 +123,19 @@ A simple example showing basic Viracochan operations:
 
 **Run:** `go run ./cmd/demo-simple [storage-directory]`
 
+---
+
+### 8. `migrate-signatures` - Legacy Signature Migration
+Re-sign checksum-valid `v0.1.x` configs with the native `v0.2.0` signature format.
+
+**Run:** `go run ./cmd/migrate-signatures -dir <storage-root> -private-key <hex-key>`
+
+**Flags:**
+- `-dir`: Storage root directory
+- `-private-key`: Hex-encoded private key used to re-sign configs
+- `-journal`: Journal path relative to the storage root (default: `journal.jsonl`)
+- `-dry-run`: Report changes without writing them
+
 ## Running All Demos
 
 To run all demos in sequence:
@@ -142,7 +155,7 @@ done
 
 ### Cryptographic Integrity
 - All demos showcase SHA-256 checksums for data integrity
-- Signature verification using secp256k1 (Nostr-style)
+- Signature verification using secp256k1 Schnorr signatures
 - Chain validation ensuring version continuity
 
 ### Storage Abstraction

@@ -271,6 +271,24 @@ func (j *Journal) Compact(ctx context.Context) error {
 	return j.storage.Write(ctx, j.path, []byte(buf.String()))
 }
 
+// Rewrite replaces the journal contents with the provided entries.
+func (j *Journal) Rewrite(ctx context.Context, entries []*JournalEntry) error {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	var buf strings.Builder
+	for _, entry := range entries {
+		data, err := json.Marshal(entry)
+		if err != nil {
+			return err
+		}
+		buf.Write(data)
+		buf.WriteByte('\n')
+	}
+
+	return j.storage.Write(ctx, j.path, []byte(buf.String()))
+}
+
 // Reconstruct rebuilds latest state from journal and scattered files
 func (j *Journal) Reconstruct(ctx context.Context, id string, storage Storage) (*Config, error) {
 	entries, err := j.FindByID(ctx, id)

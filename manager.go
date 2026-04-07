@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"sync"
 	"time"
@@ -276,6 +277,24 @@ func (m *Manager) Import(ctx context.Context, id string, data []byte) error {
 
 	if err := cfg.Validate(); err != nil {
 		return fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	key := m.configStore.makeKey(id, cfg.Meta.Version)
+	exists, err := m.storage.Exists(ctx, key)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return fmt.Errorf("%w: config %q version %d already exists", ErrVersionConflict, id, cfg.Meta.Version)
+	}
+
+	latest, err := m.getLatest(ctx, id)
+	if err == nil {
+		if err := cfg.NextOf(latest); err != nil {
+			return fmt.Errorf("import does not continue existing chain: %w", err)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
 	}
 
 	if err := m.configStore.Save(ctx, id, &cfg); err != nil {

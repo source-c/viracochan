@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -38,6 +39,11 @@ func NewJournal(storage Storage, path string) *Journal {
 	}
 }
 
+func isMissingJournalError(err error) bool {
+	return errors.Is(err, io.EOF) || errors.Is(err, os.ErrNotExist) || os.IsNotExist(err) ||
+		strings.Contains(err.Error(), "no such file")
+}
+
 // Append adds entry to journal
 func (j *Journal) Append(ctx context.Context, entry *JournalEntry) error {
 	j.mu.Lock()
@@ -66,7 +72,7 @@ func (j *Journal) ReadAll(ctx context.Context) ([]*JournalEntry, error) {
 
 	data, err := j.storage.Read(ctx, j.path)
 	if err != nil {
-		if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "no such file") {
+		if isMissingJournalError(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -206,7 +212,7 @@ func (j *Journal) Compact(ctx context.Context) error {
 	// Read without locking since we already have the lock
 	data, err := j.storage.Read(ctx, j.path)
 	if err != nil {
-		if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "no such file") {
+		if isMissingJournalError(err) {
 			return nil
 		}
 		return err

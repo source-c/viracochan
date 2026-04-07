@@ -38,15 +38,26 @@ func NewFileStorage(root string) (*FileStorage, error) {
 	return &FileStorage{root: abs}, nil
 }
 
+func (fs *FileStorage) resolvePath(path string) (string, error) {
+	fullPath := filepath.Clean(filepath.Join(fs.root, path))
+	rootPrefix := fs.root + string(os.PathSeparator)
+
+	if fullPath != fs.root && !strings.HasPrefix(fullPath, rootPrefix) {
+		return "", fmt.Errorf("invalid path: potential directory traversal")
+	}
+
+	return fullPath, nil
+}
+
 func (fs *FileStorage) Read(ctx context.Context, path string) ([]byte, error) {
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
-	fullPath := filepath.Join(fs.root, path)
-	// Validate path to prevent directory traversal
-	if !strings.HasPrefix(filepath.Clean(fullPath), fs.root) {
-		return nil, fmt.Errorf("invalid path: potential directory traversal")
+	fullPath, err := fs.resolvePath(path)
+	if err != nil {
+		return nil, err
 	}
+
 	return os.ReadFile(fullPath) // #nosec G304 - path is validated above
 }
 
@@ -54,7 +65,11 @@ func (fs *FileStorage) Write(ctx context.Context, path string, data []byte) erro
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	fullPath := filepath.Join(fs.root, path)
+	fullPath, err := fs.resolvePath(path)
+	if err != nil {
+		return err
+	}
+
 	dir := filepath.Dir(fullPath)
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
@@ -66,10 +81,19 @@ func (fs *FileStorage) List(ctx context.Context, prefix string) ([]string, error
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
-	searchPath := filepath.Join(fs.root, prefix)
+	searchPath, err := fs.resolvePath(prefix)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := os.Stat(searchPath); os.IsNotExist(err) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
 	var paths []string
 
-	err := filepath.Walk(searchPath, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(searchPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -90,7 +114,11 @@ func (fs *FileStorage) Delete(ctx context.Context, path string) error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
-	fullPath := filepath.Join(fs.root, path)
+	fullPath, err := fs.resolvePath(path)
+	if err != nil {
+		return err
+	}
+
 	return os.Remove(fullPath)
 }
 
@@ -98,8 +126,12 @@ func (fs *FileStorage) Exists(ctx context.Context, path string) (bool, error) {
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
 
-	fullPath := filepath.Join(fs.root, path)
-	_, err := os.Stat(fullPath)
+	fullPath, err := fs.resolvePath(path)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = os.Stat(fullPath)
 	if os.IsNotExist(err) {
 		return false, nil
 	}

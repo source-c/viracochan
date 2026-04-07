@@ -111,6 +111,41 @@ func TestFileStorage(t *testing.T) {
 	}
 }
 
+func TestFileStoragePathTraversal(t *testing.T) {
+	ctx := context.Background()
+	tempDir := t.TempDir()
+
+	storage, err := NewFileStorage(tempDir)
+	if err != nil {
+		t.Fatalf("NewFileStorage failed: %v", err)
+	}
+
+	outsidePath := filepath.Join(filepath.Dir(tempDir), "viracochan-outside.txt")
+
+	if err := storage.Write(ctx, "../viracochan-outside.txt", []byte("escape")); err == nil {
+		t.Fatal("expected write with path traversal to fail")
+	}
+	if _, err := os.Stat(outsidePath); !os.IsNotExist(err) {
+		t.Fatalf("path traversal write created %s", outsidePath)
+	}
+
+	if _, err := storage.Read(ctx, "../viracochan-outside.txt"); err == nil {
+		t.Error("expected read with path traversal to fail")
+	}
+
+	if _, err := storage.List(ctx, "../"); err == nil {
+		t.Error("expected list with path traversal to fail")
+	}
+
+	if err := storage.Delete(ctx, "../viracochan-outside.txt"); err == nil {
+		t.Error("expected delete with path traversal to fail")
+	}
+
+	if _, err := storage.Exists(ctx, "../viracochan-outside.txt"); err == nil {
+		t.Error("expected exists with path traversal to fail")
+	}
+}
+
 func TestConfigStorage(t *testing.T) {
 	ctx := context.Background()
 	storage := NewMemoryStorage()

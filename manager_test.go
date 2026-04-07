@@ -252,6 +252,52 @@ func TestManagerImportExport(t *testing.T) {
 	}
 }
 
+func TestManagerImportRejectsDivergingChain(t *testing.T) {
+	ctx := context.Background()
+	storage := NewMemoryStorage()
+	manager, _ := NewManager(storage)
+
+	if _, err := manager.Create(ctx, "cfg", map[string]interface{}{"version": 1}); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if _, err := manager.Update(ctx, "cfg", map[string]interface{}{"version": 2}); err != nil {
+		t.Fatalf("Update failed: %v", err)
+	}
+
+	otherStorage := NewMemoryStorage()
+	other, _ := NewManager(otherStorage)
+	if _, err := other.Create(ctx, "source", map[string]interface{}{"version": 10}); err != nil {
+		t.Fatalf("Other create failed: %v", err)
+	}
+	if _, err := other.Update(ctx, "source", map[string]interface{}{"version": 11}); err != nil {
+		t.Fatalf("Other update 1 failed: %v", err)
+	}
+	if _, err := other.Update(ctx, "source", map[string]interface{}{"version": 12}); err != nil {
+		t.Fatalf("Other update 2 failed: %v", err)
+	}
+
+	exported, err := other.Export(ctx, "source")
+	if err != nil {
+		t.Fatalf("Export failed: %v", err)
+	}
+
+	if err := manager.Import(ctx, "cfg", exported); err == nil {
+		t.Fatal("expected diverging import to fail")
+	}
+
+	if err := manager.ValidateChain(ctx, "cfg"); err != nil {
+		t.Fatalf("existing chain should remain valid: %v", err)
+	}
+
+	latest, err := manager.GetLatest(ctx, "cfg")
+	if err != nil {
+		t.Fatalf("GetLatest failed: %v", err)
+	}
+	if latest.Meta.Version != 2 {
+		t.Errorf("expected latest version 2 after rejected import, got %d", latest.Meta.Version)
+	}
+}
+
 func TestManagerRollback(t *testing.T) {
 	ctx := context.Background()
 	storage := NewMemoryStorage()
@@ -331,6 +377,20 @@ func TestManagerList(t *testing.T) {
 		if !found[id] {
 			t.Errorf("ID %s not found in list", id)
 		}
+	}
+}
+
+func TestManagerListEmpty(t *testing.T) {
+	ctx := context.Background()
+	storage := NewMemoryStorage()
+	manager, _ := NewManager(storage)
+
+	ids, err := manager.List(ctx)
+	if err != nil {
+		t.Fatalf("List failed on empty manager: %v", err)
+	}
+	if len(ids) != 0 {
+		t.Errorf("Expected no IDs, got %v", ids)
 	}
 }
 

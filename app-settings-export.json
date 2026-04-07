@@ -1,9 +1,10 @@
 {
   "_meta": {
     "v": 1,
-    "t": "2025-08-22T17:32:23.362683Z",
-    "cs": "f549384de90c210cc89227e935570914d7a3aa7b9c7e60176c44efc7f0bba4d2",
-    "sig": "fe3a5bdf2d6f34f34f674b1445e3f28cde1b81a57ec1d3adc4943e3aceffec5bda06d2e1fd8fb31ef44d4e9a3f54d3fdd6964a17b91b36acbbb4d54995db8b48"
+    "t": "2026-04-07T21:55:48.5428Z",
+    "cs": "e980acef60cb56fb7b58da85ca64f8f696d5702a5874882b1c39e6f8c6fb7c6b",
+    "sig": "c875ba313a5ef47afc6285493f5b1ced963322fb94f7ee23bd31f2e8c048676175dbca32c61748f7239bf6171ebcb50076249af3d502abcf655803fad7f3cd4a",
+    "sig_alg": "vc-schnorr-secp256k1-v2"
   },
   "content": {
     "app_name": "Viracochan Example",

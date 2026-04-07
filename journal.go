@@ -40,8 +40,7 @@ func NewJournal(storage Storage, path string) *Journal {
 }
 
 func isMissingJournalError(err error) bool {
-	return errors.Is(err, io.EOF) || errors.Is(err, os.ErrNotExist) || os.IsNotExist(err) ||
-		strings.Contains(err.Error(), "no such file")
+	return errors.Is(err, io.EOF) || errors.Is(err, os.ErrNotExist) || os.IsNotExist(err)
 }
 
 // Append adds entry to journal

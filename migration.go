@@ -30,6 +30,11 @@ type SignatureMigrationReport struct {
 
 // MigrateLegacyConfig upgrades a legacy v0.1.x signature to the v0.2.0 native
 // signature format after validating the config's checksum-backed integrity.
+//
+// The legacy nostr-event signature is NOT verified here because the event's
+// CreatedAt timestamp (used to derive the signed event ID) was never persisted
+// alongside the config, making the old signature unverifiable at rest.
+// Integrity is assured through the checksum chain instead.
 func MigrateLegacyConfig(cfg *Config, signer *Signer) error {
 	if cfg == nil {
 		return errors.New("config is nil")
@@ -169,18 +174,21 @@ const (
 	migrationStatusMigrated
 )
 
+// migrateConfigStatus classifies a config's signature state. When a non-nil
+// error is returned the status value is meaningless — callers treat errors as
+// fatal and never inspect the status.
 func migrateConfigStatus(cfg *Config, signer *Signer) (migrationStatus, error) {
 	if cfg.Meta.Signature == "" {
 		return migrationStatusUnsigned, nil
 	}
 	if cfg.Meta.SigAlg == SignatureAlgorithmV2 {
 		if err := signer.Verify(cfg, signer.PublicKey()); err != nil {
-			return migrationStatusUnsigned, fmt.Errorf("current signature invalid: %w", err)
+			return 0, fmt.Errorf("current signature invalid: %w", err)
 		}
 		return migrationStatusCurrent, nil
 	}
 	if cfg.Meta.SigAlg != "" {
-		return migrationStatusUnsigned, fmt.Errorf("%w: %q", ErrUnsupportedSignatureAlgorithm, cfg.Meta.SigAlg)
+		return 0, fmt.Errorf("%w: %q", ErrUnsupportedSignatureAlgorithm, cfg.Meta.SigAlg)
 	}
 
 	if err := MigrateLegacyConfig(cfg, signer); err != nil {
@@ -197,12 +205,12 @@ func migrateJournalEntry(entry *JournalEntry, signer *Signer, migratedByCS map[s
 	}
 	if cfg.Meta.SigAlg == SignatureAlgorithmV2 {
 		if err := signer.Verify(cfg, signer.PublicKey()); err != nil {
-			return migrationStatusUnsigned, fmt.Errorf("current signature invalid: %w", err)
+			return 0, fmt.Errorf("current signature invalid: %w", err)
 		}
 		return migrationStatusCurrent, nil
 	}
 	if cfg.Meta.SigAlg != "" {
-		return migrationStatusUnsigned, fmt.Errorf("%w: %q", ErrUnsupportedSignatureAlgorithm, cfg.Meta.SigAlg)
+		return 0, fmt.Errorf("%w: %q", ErrUnsupportedSignatureAlgorithm, cfg.Meta.SigAlg)
 	}
 
 	if meta, ok := migratedByCS[cfg.Meta.CS]; ok {

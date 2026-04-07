@@ -35,7 +35,7 @@ func NewFileStorage(root string) (*FileStorage, error) {
 	if err := os.MkdirAll(abs, 0o750); err != nil {
 		return nil, err
 	}
-	return &FileStorage{root: abs}, nil
+	return &FileStorage{root: strings.TrimRight(abs, string(os.PathSeparator))}, nil
 }
 
 func (fs *FileStorage) resolvePath(path string) (string, error) {
@@ -74,7 +74,35 @@ func (fs *FileStorage) Write(ctx context.Context, path string, data []byte) erro
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
-	return os.WriteFile(fullPath, data, 0o600)
+	return atomicWriteFile(fullPath, data, 0o600)
+}
+
+// atomicWriteFile writes data to a temp file in the same directory and renames
+// it to the target path. On POSIX systems os.Rename is atomic within the same
+// filesystem, so readers never see a partially-written file.
+func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, ".viracochan-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+
+	_, writeErr := tmp.Write(data)
+	if closeErr := tmp.Close(); writeErr == nil {
+		writeErr = closeErr
+	}
+	if writeErr != nil {
+		os.Remove(tmpPath)
+		return writeErr
+	}
+
+	if err := os.Chmod(tmpPath, perm); err != nil {
+		os.Remove(tmpPath)
+		return err
+	}
+
+	return os.Rename(tmpPath, path)
 }
 
 func (fs *FileStorage) List(ctx context.Context, prefix string) ([]string, error) {
@@ -85,6 +113,8 @@ func (fs *FileStorage) List(ctx context.Context, prefix string) ([]string, error
 	if err != nil {
 		return nil, err
 	}
+	// Non-existent prefix is not an error — return empty list. Callers that
+	// need to distinguish "never created" from "empty" should check separately.
 	if _, err := os.Stat(searchPath); os.IsNotExist(err) {
 		return nil, nil
 	} else if err != nil {

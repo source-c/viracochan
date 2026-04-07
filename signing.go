@@ -17,9 +17,7 @@ const (
 	SignatureAlgorithmV2 = "vc-schnorr-secp256k1-v2"
 )
 
-var (
-	ErrUnsupportedSignatureAlgorithm = errors.New("unsupported signature algorithm")
-)
+var ErrUnsupportedSignatureAlgorithm = errors.New("unsupported signature algorithm")
 
 // Signer provides cryptographic signing capabilities.
 type Signer struct {
@@ -77,15 +75,23 @@ func (s *Signer) Sign(cfg *Config) error {
 
 // Verify verifies a config's signature.
 func (s *Signer) Verify(cfg *Config, publicKey string) error {
+	return VerifyConfigSignature(cfg, publicKey)
+}
+
+// VerifyConfigSignature verifies a config's signature without requiring a
+// Signer instance. Only the public key is needed for verification.
+func VerifyConfigSignature(cfg *Config, publicKey string) error {
 	if cfg.Meta.Signature == "" {
 		return errors.New("config has no signature")
 	}
-	if cfg.Meta.SigAlg != SignatureAlgorithmV2 {
+
+	switch cfg.Meta.SigAlg {
+	case SignatureAlgorithmV2:
+		hash := makeSigningHashV2(cfg)
+		return verifyHash(hash[:], cfg.Meta.Signature, publicKey)
+	default:
 		return fmt.Errorf("%w: %q", ErrUnsupportedSignatureAlgorithm, cfg.Meta.SigAlg)
 	}
-
-	hash := makeSigningHashV2(cfg)
-	return verifyHash(hash[:], cfg.Meta.Signature, publicKey)
 }
 
 func makeSigningPayloadV2(cfg *Config) []byte {
@@ -152,6 +158,8 @@ func decodePrivateKey(privateKey string) (*btcec.PrivateKey, error) {
 		return nil, fmt.Errorf("invalid private key length: got %d, want %d", len(privateKeyBytes), btcec.PrivKeyBytesLen)
 	}
 
+	// Second return (public key) is intentionally discarded; callers derive it
+	// via schnorr.SerializePubKey which produces the x-only form we need.
 	priv, _ := btcec.PrivKeyFromBytes(privateKeyBytes)
 	return priv, nil
 }
@@ -195,14 +203,12 @@ func (sc *SignedConfig) VerifySignature(publicKey string) error {
 
 // VerifyChainSignatures verifies all signatures in a config chain.
 func VerifyChainSignatures(configs []*Config, publicKey string) error {
-	signer := &Signer{}
-
 	for i, cfg := range configs {
 		if cfg.Meta.Signature == "" {
 			continue
 		}
 
-		if err := signer.Verify(cfg, publicKey); err != nil {
+		if err := VerifyConfigSignature(cfg, publicKey); err != nil {
 			return fmt.Errorf("signature verification failed at index %d: %w", i, err)
 		}
 	}

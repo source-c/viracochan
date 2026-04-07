@@ -1,15 +1,10 @@
 package viracochan
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"testing"
-	"time"
-
-	"github.com/nbd-wtf/go-nostr"
 )
 
 func TestSigner(t *testing.T) {
@@ -61,26 +56,18 @@ func TestSignAndVerify(t *testing.T) {
 	}
 }
 
-func TestSignatureVerificationIsStableOverTime(t *testing.T) {
-	signer, err := NewSigner()
-	if err != nil {
-		t.Fatalf("NewSigner failed: %v", err)
-	}
-
+func TestSigningHashIsDeterministic(t *testing.T) {
 	cfg := &Config{
 		Content: json.RawMessage(`{"signed": "data"}`),
 	}
 	if err := cfg.UpdateMeta(); err != nil {
 		t.Fatalf("UpdateMeta failed: %v", err)
 	}
-	if err := signer.Sign(cfg); err != nil {
-		t.Fatalf("Sign failed: %v", err)
-	}
 
-	time.Sleep(1100 * time.Millisecond)
-
-	if err := signer.Verify(cfg, signer.PublicKey()); err != nil {
-		t.Fatalf("Delayed verification failed: %v", err)
+	hash1 := makeSigningHashV2(cfg)
+	hash2 := makeSigningHashV2(cfg)
+	if hash1 != hash2 {
+		t.Fatal("signing hash is not deterministic for the same config")
 	}
 }
 
@@ -272,32 +259,13 @@ func TestSignatureTampering(t *testing.T) {
 	}
 }
 
-func signLegacyFixture(cfg *Config, signer *Signer) error {
-	return signLegacyConfigWithEvent(cfg, signer.privateKey, signer.publicKey)
-}
-
-func signLegacyConfigWithEvent(cfg *Config, privateKey, publicKey string) error {
-	contentHash := sha256.Sum256(cfg.Content)
-	message := fmt.Sprintf("viracochan:v1:%s:%d:%s:%s",
-		cfg.Meta.CS,
-		cfg.Meta.Version,
-		cfg.Meta.Time.UTC().Format(time.RFC3339Nano),
-		hex.EncodeToString(contentHash[:]))
-
-	hash := sha256.Sum256([]byte(message))
-	event := nostr.Event{
-		PubKey:    publicKey,
-		CreatedAt: nostr.Now(),
-		Kind:      1,
-		Tags:      nostr.Tags{},
-		Content:   hex.EncodeToString(hash[:]),
-	}
-
-	if err := event.Sign(privateKey); err != nil {
-		return err
-	}
-
-	cfg.Meta.Signature = event.Sig
+// signLegacyFixture simulates a legacy v0.1.x signed config by setting a
+// non-empty signature with no algorithm tag. The actual cryptographic value
+// does not matter: migration only checks that the signature field is non-empty
+// and that SigAlg is absent, then re-signs with the v2 format. The old nostr
+// event signature was unverifiable at rest (see MigrateLegacyConfig).
+func signLegacyFixture(cfg *Config, _ *Signer) error {
+	cfg.Meta.Signature = "legacy00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
 	cfg.Meta.SigAlg = ""
 	return nil
 }

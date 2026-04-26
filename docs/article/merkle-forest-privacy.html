@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Merkle-Forest Privacy: A Cryptographic Architecture for Transparent yet Confidential Versioned Chains</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    div.abstract {
+      margin: 2em 2em 2em 2em;
+      text-align: left;
+      font-size: 85%;
+    }
+    div.abstract-title {
+      font-weight: bold;
+      text-align: center;
+      padding: 0;
+      margin-bottom: 0.5em;
+    }
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+  </style>
+  <script defer=""
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"
+  type="text/javascript"></script>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Merkle-Forest Privacy: A Cryptographic Architecture
+for Transparent yet Confidential Versioned Chains</h1>
+<p class="subtitle">Formal Treatment with Security Proofs</p>
+<p class="date">October 2025 (rev. April 2026)</p>
+<div class="abstract">
+<div class="abstract-title">Abstract</div>
+<p>Distributed versioned data structures must reconcile two opposing
+requirements: <em>transparency</em> - anyone can verify that the
+recorded history has not been tampered with - and
+<em>confidentiality</em> - observers learn nothing about payloads they
+are not authorised to see. Classical hash-chained ledgers give the
+former and forbid the latter; classical encrypted stores give the latter
+and weaken the former. We present <em>Merkle-Forest Privacy</em>, a
+three-layer architecture that combines hiding commitments, per-chain
+incremental Merkle trees, and a binary Merkle aggregation across chains
+(the <em>forest</em>) to achieve both properties simultaneously. We give
+precise definitions for each layer, state and prove four security
+theorems (binding, computational hiding, per-chain inclusion soundness,
+and cross-chain binding), provide a concrete instantiation, and analyse
+the storage and proof-size trade-offs honestly. The construction reduces
+to standard assumptions: collision resistance of the underlying hash
+family and EUF-CMA of the operator signature scheme. Optional
+zero-knowledge integration is described at the level of circuit
+interfaces, with proof sketches for soundness and zero-knowledge carried
+over from the underlying SNARK.</p>
+</div>
+</header>
+<h1 id="introduction">1. Introduction</h1>
+<p>A <em>versioned chain</em> is an append-only sequence of records
+where each record commits to its predecessor. Distributed ledgers,
+transparency logs, and reproducible-build attestations are all
+instances. The canonical design - what we will call a <em>glass
+chain</em> - stores public hashes of payloads so any observer can
+recompute the digest from the visible bytes and verify integrity. Glass
+chains give strong public auditability and zero confidentiality: every
+byte that ever entered the chain is visible to every observer.</p>
+<p>Many real applications require the opposite balance on payloads while
+keeping the auditability of the chain structure. Confidential
+supply-chain telemetry, health-record provenance, regulated financial
+trails, and multi-tenant build attestations all want a verifier to be
+able to check <em>that</em> an event occurred, with what predecessor,
+and within what aggregate, without learning <em>what</em> the event was
+unless explicitly authorised.</p>
+<p>The standard cryptographic toolkit already contains the pieces:</p>
+<ul>
+<li><strong>Hiding commitments</strong> decouple binding from
+disclosure. A commitment <span class="math inline">\(C =
+\mathrm{Commit}(m, r)\)</span> binds the committer to <span
+class="math inline">\(m\)</span> while revealing nothing about <span
+class="math inline">\(m\)</span> to a party who does not know <span
+class="math inline">\(r\)</span>.</li>
+<li><strong>Merkle trees</strong> aggregate many commitments into one
+root, with membership proofs of size <span class="math inline">\(O(\log
+n)\)</span>.</li>
+<li><strong>Zero-knowledge proofs</strong> demonstrate predicates over
+committed data without revealing it.</li>
+</ul>
+<p>What is missing is a clean, end-to-end architecture that composes
+these primitives across multiple chains in a way that is both efficient
+and <em>provably</em> secure under explicit assumptions. The
+contribution of this paper is exactly that composition, together with
+theorems that pin down which properties hold under which assumptions and
+where the boundary of formal guarantees lies.</p>
+<h2 id="contributions">1.1 Contributions</h2>
+<ol type="1">
+<li><strong>Architecture.</strong> A three-layer construction - hiding
+commitments, per-chain incremental Merkle trees, and a forest Merkle
+root over chains - with a precise specification of each layer and the
+interfaces between them (Sections 3, 4).</li>
+<li><strong>Security theorems.</strong> Four theorems with full proofs
+covering binding, hiding, per-chain inclusion soundness, and cross-chain
+binding, reducing the security of the composed system to standard
+assumptions on the underlying primitives (Section 5).</li>
+<li><strong>Honest evaluation.</strong> Concrete formulas for storage
+and proof size, correcting common arithmetic errors that appear in
+informal write-ups of similar constructions (Section 7).</li>
+<li><strong>ZK integration.</strong> A specification of three optional
+circuits (commitment correctness, inclusion, transition) and a
+discussion of how their security properties compose with those of the
+base architecture (Section 6).</li>
+</ol>
+<h2 id="what-this-paper-does-not-claim">1.2 What this paper does
+<em>not</em> claim</h2>
+<p>We are explicit about the limits of the formal results. We do
+<strong>not</strong> prove:</p>
+<ul>
+<li>Liveness or censorship-resistance of the operator publishing forest
+roots. These are protocol-level concerns outside the cryptographic
+model.</li>
+<li>Security of any specific hardware (TEE, secure element) used by
+participants.</li>
+<li>Privacy properties of the network layer; we treat communication as a
+black box that delivers messages.</li>
+<li>Soundness or zero-knowledge of any specific SNARK; we cite these as
+black-box assumptions of the chosen system (Section 6).</li>
+</ul>
+<h1 id="background">2. Background</h1>
+<h2 id="notation-and-conventions">2.1 Notation and conventions</h2>
+<p>We write <span class="math inline">\(\lambda \in \mathbb{N}\)</span>
+for the security parameter. PPT means <em>probabilistic
+polynomial-time</em>. A function <span
+class="math inline">\(\mathrm{negl} : \mathbb{N} \to \mathbb{R}\)</span>
+is <em>negligible</em> if for every polynomial <span
+class="math inline">\(p\)</span> there exists <span
+class="math inline">\(N\)</span> such that <span
+class="math inline">\(\mathrm{negl}(\lambda) &lt; 1/p(\lambda)\)</span>
+for all <span class="math inline">\(\lambda \geq N\)</span>. We write
+<span class="math inline">\(x \xleftarrow{\$} S\)</span> for sampling
+<span class="math inline">\(x\)</span> uniformly from a finite set <span
+class="math inline">\(S\)</span>. Concatenation is <span
+class="math inline">\(\|\)</span>; <span
+class="math inline">\(|x|\)</span> denotes the bit-length of <span
+class="math inline">\(x\)</span>. <span class="math inline">\([n] = \{1,
+\ldots, n\}\)</span>. By a hash family <span class="math inline">\(H =
+\{H_\lambda : \{0,1\}^* \to \{0,1\}^{\ell(\lambda)}\}\)</span> we mean a
+family of functions indexed by <span
+class="math inline">\(\lambda\)</span>; we suppress <span
+class="math inline">\(\lambda\)</span> when clear from context.</p>
+<h2 id="cryptographic-primitives">2.2 Cryptographic primitives</h2>
+<p><strong>Collision-resistant hash families.</strong> <span
+class="math inline">\(H\)</span> is <em>collision-resistant</em> (CR) if
+for every PPT adversary <span
+class="math inline">\(\mathcal{A}\)</span>,</p>
+<p><span class="math display">\[
+\Pr_{\lambda} \left[ (x, x&#39;) \leftarrow \mathcal{A}(1^\lambda) :
+  x \neq x&#39; \wedge H(x) = H(x&#39;) \right] \leq
+\mathrm{negl}(\lambda).
+\]</span></p>
+<p><strong>Commitment schemes.</strong> A non-interactive commitment
+scheme is a triple of PPT algorithms <span
+class="math inline">\((\mathsf{Setup}, \mathsf{Commit},
+\mathsf{Open})\)</span>. <span
+class="math inline">\(\mathsf{Setup}(1^\lambda)\)</span> produces public
+parameters <span class="math inline">\(\mathsf{pp}\)</span>. <span
+class="math inline">\(\mathsf{Commit}(\mathsf{pp}, m; r)\)</span>
+outputs <span class="math inline">\(C\)</span>. <span
+class="math inline">\(\mathsf{Open}\)</span> takes <span
+class="math inline">\((\mathsf{pp}, C, m, r)\)</span> and returns <span
+class="math inline">\(\{0,1\}\)</span>.</p>
+<p>The scheme is <em>computationally binding</em> if for every PPT <span
+class="math inline">\(\mathcal{A}\)</span>,</p>
+<p><span class="math display">\[
+\Pr \left[ \mathsf{Open}(\mathsf{pp}, C, m, r) = 1 \wedge
+           \mathsf{Open}(\mathsf{pp}, C, m&#39;, r&#39;) = 1 \wedge m
+\neq m&#39; \right]
+\leq \mathrm{negl}(\lambda),
+\]</span></p>
+<p>where <span class="math inline">\(\mathsf{pp} \leftarrow
+\mathsf{Setup}(1^\lambda)\)</span> and <span class="math inline">\((C,
+m, r, m&#39;, r&#39;) \leftarrow \mathcal{A}(\mathsf{pp})\)</span>.</p>
+<p>The scheme is <em>computationally hiding</em> if for every PPT <span
+class="math inline">\(\mathcal{A}\)</span> and every pair of
+equal-length messages <span class="math inline">\(m_0, m_1\)</span>,</p>
+<p><span class="math display">\[
+\left| \Pr[\mathcal{A}(\mathsf{pp}, \mathsf{Commit}(\mathsf{pp}, m_0;
+r)) = 1] -
+       \Pr[\mathcal{A}(\mathsf{pp}, \mathsf{Commit}(\mathsf{pp}, m_1;
+r)) = 1] \right|
+\leq \mathrm{negl}(\lambda),
+\]</span></p>
+<p>where <span class="math inline">\(\mathsf{pp} \leftarrow
+\mathsf{Setup}(1^\lambda)\)</span> and <span class="math inline">\(r
+\xleftarrow{\$} \{0,1\}^{\rho(\lambda)}\)</span> for the scheme’s
+randomness length <span class="math inline">\(\rho\)</span>.</p>
+<p><strong>Merkle trees.</strong> Given a CR hash <span
+class="math inline">\(H\)</span> and leaves <span
+class="math inline">\(\ell_1, \ldots, \ell_n\)</span> (with <span
+class="math inline">\(n\)</span> a power of two; we pad with a
+distinguished zero leaf when necessary), the binary Merkle root is
+defined recursively: for a single leaf <span
+class="math inline">\(\ell\)</span>, the root is <span
+class="math inline">\(H(0\|\ell)\)</span>; for two subtrees with roots
+<span class="math inline">\(L, R\)</span>, the parent is <span
+class="math inline">\(H(1\|L\|R)\)</span>. The domain-separation prefix
+bits <span class="math inline">\(0\)</span>/<span
+class="math inline">\(1\)</span> for leaves and internal nodes are
+critical for the standard reduction to CR; without them, one can
+substitute a leaf with an internal node carrying the same hash and break
+inclusion soundness. An <em>inclusion proof</em> for leaf <span
+class="math inline">\(\ell_i\)</span> is the list of sibling hashes
+<span class="math inline">\(\pi_i\)</span> along the root path; a
+verifier recomputes the root by hashing <span
+class="math inline">\(\ell_i\)</span> together with the siblings and
+checks equality with the published root.</p>
+<p><strong>Signature schemes.</strong> <span
+class="math inline">\(\Sigma = (\mathsf{KeyGen}, \mathsf{Sign},
+\mathsf{Vfy})\)</span> is <em>EUF-CMA secure</em> if no PPT adversary
+with oracle access to <span
+class="math inline">\(\mathsf{Sign}_{sk}(\cdot)\)</span> can output a
+fresh message-signature pair <span class="math inline">\((m^*,
+\sigma^*)\)</span> with <span
+class="math inline">\(\mathsf{Vfy}_{pk}(m^*,
+\sigma^*) = 1\)</span> except with negligible probability.</p>
+<h2 id="why-a-hash-commitment-differs-from-a-hash-checksum">2.3 Why a
+hash commitment differs from a hash checksum</h2>
+<p>A SHA-256 <em>checksum</em> of a record <span
+class="math inline">\(m\)</span> is a deterministic public function of
+<span class="math inline">\(m\)</span>. Anyone who possesses the
+canonical bytes can recompute it, which makes it useful for integrity
+but useless for confidentiality: the checksum is a one-way function only
+when <span class="math inline">\(m\)</span> has high min-entropy, and
+most application payloads do not. Worse, if the message space is small
+or guessable (e.g., a boolean, a small enumeration, a known template),
+the adversary can compute the checksum of every candidate and recover
+<span class="math inline">\(m\)</span> exactly.</p>
+<p>A <em>commitment</em> <span class="math inline">\(C =
+\mathsf{Commit}(m; r)\)</span> with a fresh uniformly random <span
+class="math inline">\(r\)</span> of length <span
+class="math inline">\(\rho(\lambda)\)</span> severs this link: the same
+<span class="math inline">\(m\)</span> produces different commitments
+under different <span class="math inline">\(r\)</span>, and the hiding
+property guarantees that <span class="math inline">\(C\)</span> leaks
+nothing about <span class="math inline">\(m\)</span> to a party who does
+not know <span class="math inline">\(r\)</span>.</p>
+<h1 id="system-model">3. System Model</h1>
+<h2 id="parties-and-trust">3.1 Parties and trust</h2>
+<p>The architecture has three logical roles. The <em>operator</em>
+maintains the forest and publishes forest roots at fixed epochs.
+<em>Chain owners</em> each maintain a local incremental Merkle tree
+(IMT) and submit per-epoch chain roots to the operator.
+<em>Verifiers</em> receive selectively disclosed proofs and check them
+against published forest roots.</p>
+<p>The operator is <strong>untrusted for confidentiality</strong>: it
+never sees plaintext payloads. The operator is <strong>trusted for
+liveness</strong>: if it stops publishing forest roots, the system halts
+(this is a known limitation; see Section 8).</p>
+<p>Chain owners are trusted to keep their own blinding factors
+confidential and to handle their own data appropriately. The
+architecture does not defend a chain owner against itself.</p>
+<p>Verifiers are mutually distrusting; they trust only what they can
+recompute from public data and the proofs they receive.</p>
+<h2 id="adversary">3.2 Adversary</h2>
+<p>We consider a static, malicious adversary <span
+class="math inline">\(\mathcal{A}\)</span> that may:</p>
+<ul>
+<li>Observe all public data: forest roots, chain roots published at
+epochs, and any commitments and inclusion proofs disclosed to it.</li>
+<li>Adaptively request commitments and openings to specific records of
+its choice (this captures the case where the adversary controls some
+chain owners or has compromised some authorised verifiers).</li>
+<li>Submit arbitrary chain roots and inclusion proofs for
+verification.</li>
+</ul>
+<p><span class="math inline">\(\mathcal{A}\)</span> may
+<strong>not</strong>:</p>
+<ul>
+<li>Compute hash collisions, except with the negligible probability
+guaranteed by CR.</li>
+<li>Forge operator signatures on forest roots, except with the
+negligible probability guaranteed by EUF-CMA.</li>
+</ul>
+<p>The adversary is computationally bounded (PPT in <span
+class="math inline">\(\lambda\)</span>).</p>
+<h2 id="what-the-architecture-guarantees-informally">3.3 What the
+architecture guarantees, informally</h2>
+<ul>
+<li><strong>Local privacy.</strong> A non-authorised observer who sees a
+published commitment, the chain roots it appears in, and the forest
+roots binding those chain roots learns nothing about the underlying
+message except its existence and position in the chain.</li>
+<li><strong>Selective disclosure.</strong> A chain owner can reveal a
+specific record (or a derived predicate over records) to a chosen
+verifier without exposing other records.</li>
+<li><strong>Inclusion soundness.</strong> A verifier accepting a
+per-chain inclusion proof is convinced, except with negligible
+probability, that the committed leaf was indeed appended to the chain in
+the asserted position.</li>
+<li><strong>Cross-chain binding.</strong> A verifier accepting a
+forest-level proof is convinced that the asserted chain root was bound
+into the asserted forest root, and therefore that all chain owners agree
+on the cross-chain history at that epoch.</li>
+</ul>
+<p>The next two sections make these statements precise.</p>
+<h1 id="construction">4. Construction</h1>
+<p>The construction has three layers. We specify each as a tuple of
+algorithms.</p>
+<h2 id="layer-1-hiding-commitments">4.1 Layer 1: Hiding Commitments</h2>
+<p>Let <span class="math inline">\(\mathsf{Hash} : \{0,1\}^* \to
+\{0,1\}^\ell\)</span> be a CR hash, modelled as a random oracle for the
+hiding proof (Section 5.2). The commitment algorithm is:</p>
+<p><span class="math display">\[
+\mathsf{Commit}(m) :
+  \quad r \xleftarrow{\$} \{0,1\}^\lambda; \quad
+  C := \mathsf{Hash}(\mathtt{&quot;cmt&quot;} \| m \| r); \quad
+  \text{return } (C, r).
+\]</span></p>
+<p><span class="math inline">\(\mathsf{Open}(C, m, r) :=
+[\mathsf{Hash}(\mathtt{&quot;cmt&quot;} \| m \| r) = C]\)</span>.</p>
+<p>The domain separator <span
+class="math inline">\(\mathtt{&quot;cmt&quot;}\)</span> ensures
+commitments are distinct from internal Merkle hashes (Section 4.2) and
+forest hashes (Section 4.3) even if all three layers use the same
+underlying hash function.</p>
+<p>The randomness length is fixed at <span
+class="math inline">\(\lambda\)</span> bits (256 for <span
+class="math inline">\(\lambda = 128\)</span>). This is the source of
+computational hiding; reducing <span class="math inline">\(|r|\)</span>
+below <span class="math inline">\(\lambda\)</span> weakens hiding
+correspondingly.</p>
+<p>In practice <span class="math inline">\(\mathsf{Hash}\)</span> may be
+SHA-256 (for software/on-chain verification) or Poseidon2 (for
+verification inside SNARK/STARK circuits). The proofs in Section 5 are
+agnostic to the choice provided the assumed properties hold.</p>
+<h2 id="layer-2-per-chain-incremental-merkle-tree">4.2 Layer 2:
+Per-Chain Incremental Merkle Tree</h2>
+<p>Each chain owner maintains an <em>incremental Merkle tree</em> (IMT)
+over the sequence of commitments <span class="math inline">\(C_1, C_2,
+\ldots, C_t\)</span> produced for its chain. The IMT supports
+<code>Append</code> in <span class="math inline">\(O(\log t)\)</span>
+time and <span class="math inline">\(O(\log t)\)</span> state (the
+<em>frontier</em>).</p>
+<p>We define the canonical leaf of the chain at position <span
+class="math inline">\(i\)</span> as</p>
+<p><span class="math display">\[
+\mathsf{leaf}_i := \mathsf{Hash}(\mathtt{&quot;leaf&quot;} \| i \| C_i
+\| \mathsf{prev}_i),
+\]</span></p>
+<p>where <span class="math inline">\(\mathsf{prev}_i\)</span> is the
+leaf hash of position <span class="math inline">\(i-1\)</span> (with
+<span class="math inline">\(\mathsf{prev}_1\)</span> a fixed all-zero
+string). The chaining of <span
+class="math inline">\(\mathsf{prev}\)</span> binds each leaf to its
+predecessor and prevents reordering: any permutation of leaves that
+keeps the same multiset of commitments produces a different leaf hash at
+every position.</p>
+<p>Internal Merkle nodes are computed as <span
+class="math inline">\(\mathsf{node}(L, R) :=
+\mathsf{Hash}(\mathtt{&quot;node&quot;} \| L \| R)\)</span>. The tree is
+padded to the next power of two with the all-zero leaf <span
+class="math inline">\(\mathsf{leaf}_\bot :=
+\mathsf{Hash}(\mathtt{&quot;leaf&quot;} \| 0 \| 0^\ell \|
+0^\ell)\)</span>.</p>
+<p>The chain root at time <span class="math inline">\(t\)</span>,
+denoted <span class="math inline">\(R_t\)</span>, is the root of the
+resulting binary tree.</p>
+<h3 id="imt-append-algorithm">4.2.1 IMT append algorithm</h3>
+<pre><code>state Frontier : array of Hash, initially empty
+state Count    : Int, initially 0
+
+function Append(commitment C, prev leaf hash p) -&gt; (R, leaf):
+    Count := Count + 1
+    leaf := Hash(&quot;leaf&quot; || Count || C || p)
+    node := leaf
+    idx  := Count - 1                    # zero-indexed position
+    for level := 0 while (idx mod 2) == 1:
+        sibling := Frontier[level]
+        node    := Hash(&quot;node&quot; || sibling || node)
+        idx     := idx / 2
+        level   := level + 1
+    Frontier[level] := node
+    R := compute_root_from_frontier(Frontier, Count)
+    return (R, leaf)</code></pre>
+<p><code>compute_root_from_frontier</code> zero-pads the right-hand
+siblings up to the next power of two and folds the frontier into a
+single root in <span class="math inline">\(O(\log t)\)</span> hash
+evaluations.</p>
+<h3 id="inclusion-proofs">4.2.2 Inclusion proofs</h3>
+<p>An inclusion proof <span class="math inline">\(\pi_i\)</span> for
+leaf <span class="math inline">\(\mathsf{leaf}_i\)</span> in the tree of
+size <span class="math inline">\(t\)</span> consists of the <span
+class="math inline">\(\lceil \log_2 t \rceil\)</span> sibling hashes
+along the path from <span class="math inline">\(\mathsf{leaf}_i\)</span>
+to the root, together with a bit per level indicating whether the path
+goes left or right.</p>
+<p><code>Verify(R, i, leaf, π)</code> recomputes the root by iteratively
+hashing <code>leaf</code> with siblings according to the direction bits
+and returns <span class="math inline">\([R&#39; = R]\)</span>.</p>
+<h2 id="layer-3-forest-merkle-root">4.3 Layer 3: Forest Merkle Root</h2>
+<p>At the end of each epoch, every active chain owner publishes its
+current chain root <span class="math inline">\(R^{(j)}_t\)</span> for
+chain <span class="math inline">\(j \in [n]\)</span>. The operator
+collects these and orders them deterministically; we use lexicographic
+order on <span
+class="math inline">\(\mathsf{Hash}(\mathtt{&quot;chain-id&quot;} \|
+\mathsf{ChainPubKey}_j)\)</span>. This deterministic ordering is
+essential: a verifier who sees only the forest root must be able to
+recompute it from the chain-root multiset without ambiguity.</p>
+<p>The forest root <span class="math inline">\(F\)</span> is the
+<strong>binary Merkle root</strong> over the ordered sequence of chain
+roots, using the same <code>node</code> function as in Layer 2:</p>
+<p><span class="math display">\[
+F := \mathsf{MerkleRoot}\bigl(R^{(\sigma(1))}, R^{(\sigma(2))}, \ldots,
+R^{(\sigma(n))}\bigr),
+\]</span></p>
+<p>where <span class="math inline">\(\sigma\)</span> is the
+deterministic ordering. The number of chains <span
+class="math inline">\(n\)</span> is padded to the next power of two with
+the zero leaf, identically to Layer 2.</p>
+<p>A <em>forest inclusion proof</em> for chain <span
+class="math inline">\(j\)</span> at epoch <span
+class="math inline">\(e\)</span> is the tuple <span
+class="math inline">\((R^{(j)}, \pi^{\text{forest}}_j, F_e,
+\sigma_e)\)</span> where <span
+class="math inline">\(\pi^{\text{forest}}_j\)</span> is the <span
+class="math inline">\(\lceil \log_2 n \rceil\)</span>-sized Merkle path
+from <span class="math inline">\(R^{(j)}\)</span> to <span
+class="math inline">\(F_e\)</span> under the ordering <span
+class="math inline">\(\sigma_e\)</span>.</p>
+<p>The operator publishes <span class="math inline">\((e, F_e,
+\sigma_e)\)</span> on an immutable bulletin (blockchain anchor,
+time-stamping authority, or signed append-only log) and signs the tuple
+with its long-term key <span
+class="math inline">\(pk_{\mathsf{op}}\)</span>. Verifiers fetch the
+published tuple and check the operator signature before relying on <span
+class="math inline">\(F_e\)</span>.</p>
+<h2 id="summary-of-guarantees-by-layer">4.4 Summary of guarantees by
+layer</h2>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 35%" />
+<col style="width: 39%" />
+</colgroup>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Provides</th>
+<th>Reduces to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1: Hiding commitment</td>
+<td>binding, hiding</td>
+<td>CR (binding); RO model (hiding)</td>
+</tr>
+<tr>
+<td>2: Per-chain IMT</td>
+<td>inclusion soundness within chain</td>
+<td>CR</td>
+</tr>
+<tr>
+<td>3: Forest Merkle root</td>
+<td>cross-chain binding</td>
+<td>CR; EUF-CMA of operator</td>
+</tr>
+</tbody>
+</table>
+<h1 id="security">5. Security</h1>
+<p>We state and prove four theorems. Throughout this section <span
+class="math inline">\(\mathsf{Hash}\)</span> is the hash family of
+Section 4 and <span class="math inline">\(\Sigma\)</span> is the
+operator signature scheme. <span class="math inline">\(\lambda\)</span>
+is the security parameter.</p>
+<h2 id="theorem-1-commitment-binding">5.1 Theorem 1 (Commitment
+binding)</h2>
+<p><strong>Theorem.</strong> If <span
+class="math inline">\(\mathsf{Hash}\)</span> is collision-resistant,
+then the commitment scheme of Section 4.1 is computationally
+binding.</p>
+<p><strong>Proof.</strong> Suppose for contradiction that there is a PPT
+adversary <span
+class="math inline">\(\mathcal{A}_{\mathsf{bind}}\)</span> that, on
+input <span class="math inline">\(1^\lambda\)</span>, outputs <span
+class="math inline">\((C, m, r, m&#39;, r&#39;)\)</span> with <span
+class="math inline">\(m \neq m&#39;\)</span> and <span
+class="math inline">\(\mathsf{Hash}(\mathtt{&quot;cmt&quot;} \| m \| r)
+=
+\mathsf{Hash}(\mathtt{&quot;cmt&quot;} \| m&#39; \| r&#39;) = C\)</span>
+with non-negligible probability <span
+class="math inline">\(\varepsilon(\lambda)\)</span>.</p>
+<p>Construct a CR adversary <span
+class="math inline">\(\mathcal{B}\)</span> as follows: on input <span
+class="math inline">\(1^\lambda\)</span>, run <span
+class="math inline">\(\mathcal{A}_{\mathsf{bind}}(1^\lambda)\)</span> to
+obtain <span class="math inline">\((C, m, r, m&#39;, r&#39;)\)</span>.
+Output the pair <span class="math inline">\(x :=
+\mathtt{&quot;cmt&quot;} \| m \| r\)</span> and <span
+class="math inline">\(x&#39; := \mathtt{&quot;cmt&quot;} \| m&#39; \|
+r&#39;\)</span>. Since <span class="math inline">\(m \neq
+m&#39;\)</span>, we have <span class="math inline">\(x \neq
+x&#39;\)</span>, and <span class="math inline">\(\mathsf{Hash}(x) =
+\mathsf{Hash}(x&#39;) = C\)</span>. Therefore <span
+class="math inline">\(\mathcal{B}\)</span> outputs a collision with
+probability <span class="math inline">\(\varepsilon(\lambda)\)</span>,
+contradicting CR of <span class="math inline">\(\mathsf{Hash}\)</span>.
+<span class="math inline">\(\square\)</span></p>
+<h2 id="theorem-2-commitment-hiding">5.2 Theorem 2 (Commitment
+hiding)</h2>
+<p><strong>Theorem.</strong> Modelling <span
+class="math inline">\(\mathsf{Hash}\)</span> as a random oracle, the
+commitment scheme of Section 4.1 is computationally hiding.</p>
+<p><strong>Proof sketch.</strong> Let <span
+class="math inline">\(\mathcal{A}_{\mathsf{hide}}\)</span> be a PPT
+distinguisher that on input <span
+class="math inline">\(\mathsf{Commit}(m_b)\)</span> for a uniformly
+chosen <span class="math inline">\(b \in \{0,1\}\)</span> guesses <span
+class="math inline">\(b\)</span> with advantage <span
+class="math inline">\(\varepsilon(\lambda)\)</span>.</p>
+<p>The challenger samples <span class="math inline">\(r \xleftarrow{\$}
+\{0,1\}^\lambda\)</span> and computes <span class="math inline">\(C^* :=
+\mathsf{Hash}(\mathtt{&quot;cmt&quot;} \| m_b \| r)\)</span>. Because
+<span class="math inline">\(r\)</span> is uniform and <span
+class="math inline">\(|r| = \lambda\)</span>, the probability that the
+adversary queries the random oracle on the exact string <span
+class="math inline">\(\mathtt{&quot;cmt&quot;} \| m_0 \| r\)</span> or
+<span class="math inline">\(\mathtt{&quot;cmt&quot;} \| m_1 \|
+r\)</span> is at most <span class="math inline">\(q(\lambda) \cdot
+2^{-\lambda}\)</span>, where <span class="math inline">\(q\)</span> is
+the number of oracle queries made by the adversary (polynomial in <span
+class="math inline">\(\lambda\)</span>).</p>
+<p>Conditioned on no such query, <span
+class="math inline">\(C^*\)</span> is a uniformly random element of
+<span class="math inline">\(\{0,1\}^\ell\)</span> independent of <span
+class="math inline">\(b\)</span>, so <span
+class="math inline">\(\mathcal{A}_{\mathsf{hide}}\)</span>’s advantage
+is zero. Removing the conditioning, <span
+class="math inline">\(\varepsilon(\lambda) \leq q(\lambda) \cdot
+2^{-\lambda} =
+\mathrm{negl}(\lambda)\)</span>. <span
+class="math inline">\(\square\)</span></p>
+<blockquote>
+<p><strong>Remark.</strong> Without the random oracle assumption, hiding
+does not follow from CR alone. Hash commitments are computationally
+hiding under the assumption that the hash is a <em>pseudorandom
+function</em> when keyed by <span class="math inline">\(r\)</span>,
+which is a stronger property than CR but weaker than the RO model. For
+information-theoretic hiding one must move to Pedersen commitments over
+a prime-order group.</p>
+</blockquote>
+<h2 id="theorem-3-per-chain-inclusion-soundness">5.3 Theorem 3
+(Per-chain inclusion soundness)</h2>
+<p><strong>Theorem.</strong> Let <span class="math inline">\(H\)</span>
+be CR. Let <span class="math inline">\(R_t\)</span> be the chain root
+after <span class="math inline">\(t\)</span> appends to an IMT as
+defined in Section 4.2. No PPT adversary, given the chain history, can
+produce <span class="math inline">\((i, \mathsf{leaf}&#39;,
+\pi&#39;)\)</span> with <span class="math inline">\(\mathsf{leaf}&#39;
+\neq \mathsf{leaf}_i\)</span> and <span
+class="math inline">\(\mathsf{Verify}(R_t, i, \mathsf{leaf}&#39;,
+\pi&#39;) = 1\)</span>, except with negligible probability.</p>
+<p><strong>Proof.</strong> Suppose <span
+class="math inline">\(\mathcal{A}_{\mathsf{incl}}\)</span> outputs such
+a tuple with non-negligible probability <span
+class="math inline">\(\varepsilon\)</span>. Consider the path from
+position <span class="math inline">\(i\)</span> to the root in the
+honest tree, with sequence of node hashes <span
+class="math inline">\(h_0 = \mathsf{leaf}_i, h_1, \ldots, h_d =
+R_t\)</span> where <span class="math inline">\(d = \lceil \log_2 t
+\rceil\)</span>. Consider the path induced by <span
+class="math inline">\((\mathsf{leaf}&#39;, \pi&#39;)\)</span>: a
+sequence <span class="math inline">\(h&#39;_0 = \mathsf{leaf}&#39; \neq
+h_0, h&#39;_1, \ldots, h&#39;_d = R_t\)</span>.</p>
+<p>Let <span class="math inline">\(k^* := \min\{k : h&#39;_k =
+h_k\}\)</span>. Such a <span class="math inline">\(k^*\)</span> exists
+because <span class="math inline">\(h&#39;_d = h_d = R_t\)</span>, and
+<span class="math inline">\(k^* \geq 1\)</span> because <span
+class="math inline">\(h&#39;_0 \neq h_0\)</span>. At level <span
+class="math inline">\(k^*\)</span>, both honest and adversarial
+computations produce the same hash: <span class="math inline">\(h_{k^*}
+= h&#39;_{k^*}\)</span>. But the inputs to the hash differ: in the
+honest path the level-<span class="math inline">\((k^*-1)\)</span> child
+on the <span class="math inline">\(i\)</span>-side is <span
+class="math inline">\(h_{k^*-1}\)</span>, and in the adversarial path it
+is <span class="math inline">\(h&#39;_{k^*-1} \neq h_{k^*-1}\)</span>
+(by minimality of <span class="math inline">\(k^*\)</span>). The sibling
+at level <span class="math inline">\(k^*-1\)</span> may match or differ;
+in either case the <em>full input strings</em> to the level-<span
+class="math inline">\(k^*\)</span> hash differ, since they agree on the
+sibling and disagree on the <span class="math inline">\(i\)</span>-side
+child.</p>
+<p>Therefore the adversary has produced <span
+class="math inline">\(\mathsf{Hash}(\mathtt{&quot;node&quot;} \| L \| R)
+=
+\mathsf{Hash}(\mathtt{&quot;node&quot;} \| L&#39; \| R&#39;)\)</span>
+with <span class="math inline">\((L, R) \neq (L&#39;, R&#39;)\)</span>,
+which is a collision in <span class="math inline">\(H\)</span>. Reducing
+in the standard way, this gives a CR adversary with success probability
+<span class="math inline">\(\varepsilon\)</span>, contradicting CR of
+<span class="math inline">\(H\)</span>. <span
+class="math inline">\(\square\)</span></p>
+<blockquote>
+<p><strong>Why the <span
+class="math inline">\(\mathtt{&quot;leaf&quot;}/\mathtt{&quot;node&quot;}\)</span>
+separation matters.</strong> Without domain separation between leaves
+and internal nodes, the adversary could substitute an internal node as a
+“leaf” carrying the same hash and produce a valid-looking inclusion
+proof. The standard attack and its countermeasure are documented in the
+Bitcoin and RFC 6962 ecosystems; we make the separation explicit in the
+construction so the reduction above is clean.</p>
+</blockquote>
+<h2 id="theorem-4-cross-chain-binding">5.4 Theorem 4 (Cross-chain
+binding)</h2>
+<p><strong>Theorem.</strong> Let <span class="math inline">\(H\)</span>
+be CR and let <span class="math inline">\(\Sigma\)</span> be EUF-CMA.
+Let <span class="math inline">\(F_e\)</span> be a forest root signed by
+the operator at epoch <span class="math inline">\(e\)</span> over an
+ordering <span class="math inline">\(\sigma_e\)</span> of chain roots
+<span class="math inline">\(\{R^{(1)}, \ldots, R^{(n)}\}\)</span>. No
+PPT adversary, given access to operator signing on chosen forest roots
+other than <span class="math inline">\(F_e\)</span>, can produce <span
+class="math inline">\((j, R&#39;^{(j)}, \pi&#39;^{\mathrm{forest}}, F_e,
+\sigma_e, \varsigma_e)\)</span> with:</p>
+<ol type="a">
+<li><span class="math inline">\(\mathsf{Vfy}_{pk_{\mathsf{op}}}((e, F_e,
+\sigma_e), \varsigma_e) = 1\)</span>,</li>
+<li>the recomputed Merkle root from <span
+class="math inline">\(R&#39;^{(j)}\)</span> and <span
+class="math inline">\(\pi&#39;^{\mathrm{forest}}\)</span> equals <span
+class="math inline">\(F_e\)</span>,</li>
+<li><span class="math inline">\(R&#39;^{(j)} \neq R^{(j)}\)</span>,
+where <span class="math inline">\(R^{(j)}\)</span> is the chain-<span
+class="math inline">\(j\)</span> root actually published into the forest
+at epoch <span class="math inline">\(e\)</span>,</li>
+</ol>
+<p>except with probability negligible in <span
+class="math inline">\(\lambda\)</span>.</p>
+<p><strong>Proof.</strong> We split the adversary’s success into two
+cases.</p>
+<p><em>Case A: <span class="math inline">\((e, F_e, \sigma_e)\)</span>
+was never signed by the honest operator.</em> Then the adversary has
+produced a valid signature on a fresh message, contradicting EUF-CMA of
+<span class="math inline">\(\Sigma\)</span>. The reduction is standard:
+an EUF-CMA challenger generates <span
+class="math inline">\(pk_{\mathsf{op}}\)</span>, the reduction simulates
+the adversary by forwarding signing queries to its oracle, and outputs
+the forged tuple.</p>
+<p><em>Case B: <span class="math inline">\((e, F_e, \sigma_e)\)</span>
+was signed by the honest operator on the honest chain-root multiset
+<span class="math inline">\(\{R^{(1)}, \ldots, R^{(n)}\}\)</span>.</em>
+Then <span class="math inline">\(F_e\)</span> is the genuine Merkle root
+over the ordered honest chain roots, and the adversary has produced a
+Merkle inclusion proof for <span class="math inline">\(R&#39;^{(j)} \neq
+R^{(j)}\)</span> under <span class="math inline">\(F_e\)</span>. By
+Theorem 3 applied to the forest Merkle tree (which is structurally
+identical to a per-chain IMT), this requires a collision in <span
+class="math inline">\(H\)</span>, contradicting CR.</p>
+<p>Combining both cases via the union bound, the adversary’s success
+probability is at most <span
+class="math inline">\(\mathrm{Adv}^{\mathsf{EUF\text{-}CMA}}_{\Sigma}(\lambda)
++
+\mathrm{Adv}^{\mathsf{CR}}_{H}(\lambda) =
+\mathrm{negl}(\lambda)\)</span>. <span
+class="math inline">\(\square\)</span></p>
+<h2 id="what-is-not-proved">5.5 What is <em>not</em> proved</h2>
+<p>The following properties are common requests but require additional
+structure beyond what Section 4 specifies:</p>
+<ul>
+<li><strong>Selective-disclosure unforgeability under partial
+revelation.</strong> If a chain owner reveals openings <span
+class="math inline">\((m_i, r_i)\)</span> for some indices <span
+class="math inline">\(i \in S\)</span>, an adversary may use these as a
+leverage in <em>zero-knowledge</em> protocols built on top. Soundness of
+those protocols depends on the SNARK chosen (Section 6) and is not
+inherited from Theorems 1–4.</li>
+<li><strong>Forward secrecy.</strong> If the operator’s signing key is
+compromised at time <span class="math inline">\(\tau\)</span>, the
+adversary can sign forged forest tuples for epochs <span
+class="math inline">\(&gt; \tau\)</span>. The architecture as specified
+does not defend against this; standard mitigations (key rotation,
+threshold signatures, transparency-log anchoring) apply but are out of
+scope.</li>
+<li><strong>Liveness and censorship-resistance.</strong> Section 8
+discusses these as protocol-level concerns.</li>
+</ul>
+<h1 id="optional-zero-knowledge-layer">6. Optional Zero-Knowledge
+Layer</h1>
+<p>The architecture above is fully functional without any SNARK. Three
+optional circuits, when added, support stronger predicates over
+committed data without revealing the data.</p>
+<p>Throughout this section we assume an underlying SNARK system <span
+class="math inline">\((\mathsf{Setup}_{\mathsf{ZK}}, \mathsf{Prove},
+\mathsf{Verify})\)</span> with the standard properties of
+<em>completeness</em>, <em>knowledge soundness</em>, and
+<em>zero-knowledge</em>. Concrete instantiations are PLONK with KZG
+commitments (universal setup, ~400-byte proofs), Groth16 (circuit-
+specific setup, ~200-byte proofs), or STARK-based systems (transparent,
+larger proofs typically 50–200 KB). The choice trades proof size, prover
+time, setup assumptions, and post-quantum resilience.</p>
+<h2 id="commitment-correctness-circuit">6.1 Commitment correctness
+circuit</h2>
+<p>Statement: “I know <span class="math inline">\((m, r)\)</span> such
+that <span class="math inline">\(\mathsf{Commit}(m; r) =
+C\)</span>.”</p>
+<pre><code>public input:  C
+private input: m, r
+constraint:    C = Hash(&quot;cmt&quot; || m || r)</code></pre>
+<p>This is the simplest circuit. Soundness inherits directly from the
+SNARK’s knowledge soundness: a verifier accepting the proof is convinced
+(with the SNARK’s negligible error) that the prover knows <span
+class="math inline">\((m, r)\)</span> opening <span
+class="math inline">\(C\)</span>.</p>
+<h2 id="inclusion-circuit">6.2 Inclusion circuit</h2>
+<p>Statement: “I know <span class="math inline">\((\mathsf{leaf}, \pi,
+i)\)</span> such that the Merkle path verifies to public root <span
+class="math inline">\(R\)</span> at position <span
+class="math inline">\(i\)</span>.”</p>
+<pre><code>public input:  R, i
+private input: leaf, π = (s_0, ..., s_{d-1}), direction bits b_0,...,b_{d-1}
+constraint:    iterative recomputation of root from leaf and π equals R</code></pre>
+<p>This circuit hides <em>which</em> leaf the prover knows; the verifier
+learns only that some valid leaf exists at some position. Combined with
+the commitment circuit, the prover can demonstrate “I know an opening of
+some commitment in the chain with root <span
+class="math inline">\(R\)</span>” without revealing which
+commitment.</p>
+<h2 id="optional-transition-predicate">6.3 Optional transition
+predicate</h2>
+<p>For applications where state transitions must satisfy domain rules
+(e.g., a quantity must be non-decreasing, an ordering relation must
+hold), a third circuit can encode the predicate as an arithmetic
+constraint over <span class="math inline">\((m_i, m_{i-1})\)</span>.
+This gives the prover the ability to assert that the entire chain
+satisfies the predicate without revealing the chain.</p>
+<h2 id="composition">6.4 Composition</h2>
+<p>The three circuits compose by sharing public inputs. A typical
+disclosure of “record at position <span class="math inline">\(i\)</span>
+in chain <span class="math inline">\(j\)</span> at epoch <span
+class="math inline">\(e\)</span> satisfies predicate <span
+class="math inline">\(P\)</span>” combines:</p>
+<ol type="1">
+<li>Forest inclusion proof (non-ZK, Section 4.3) anchoring <span
+class="math inline">\(R^{(j)}\)</span> to <span
+class="math inline">\(F_e\)</span>.</li>
+<li>Inclusion ZK proof (Section 6.2) that some leaf at position <span
+class="math inline">\(i\)</span> exists under <span
+class="math inline">\(R^{(j)}\)</span>.</li>
+<li>Transition ZK proof (Section 6.3) that the predicate <span
+class="math inline">\(P\)</span> holds for the underlying <span
+class="math inline">\(m_i\)</span>.</li>
+</ol>
+<p>Soundness of the composed disclosure follows from Theorems 1–4 plus
+knowledge soundness of the SNARK; zero-knowledge is inherited
+unconditionally from the SNARK.</p>
+<h1 id="evaluation">7. Evaluation</h1>
+<p>We give exact formulas, not benchmark numbers. Benchmark numbers are
+implementation-specific and become misleading when divorced from
+hardware, hash choice, and SNARK parameters.</p>
+<h2 id="storage">7.1 Storage</h2>
+<p>Per record: one commitment of size <span
+class="math inline">\(\ell\)</span> bits and one blinding factor of size
+<span class="math inline">\(\lambda\)</span> bits, total <span
+class="math inline">\(\ell + \lambda\)</span> bits.</p>
+<p>For <span class="math inline">\(\ell = \lambda = 256\)</span>
+(SHA-256 or Poseidon2 over a 256-bit field): <strong>64 bytes per
+record</strong>.</p>
+<p>Per chain at any time: an IMT frontier of at most <span
+class="math inline">\(\lceil \log_2 t \rceil + 1\)</span> hashes, plus
+one current root. For <span class="math inline">\(t = 10^6\)</span>: at
+most <span class="math inline">\(21 \cdot 32 = 672\)</span> bytes of
+state, regardless of chain history.</p>
+<p>Per epoch on the bulletin: one operator-signed forest tuple of size
+<span class="math inline">\(\ell + |\sigma_e| + |\varsigma|\)</span>
+bits. With <span class="math inline">\(n\)</span> chains, <span
+class="math inline">\(\sigma_e\)</span> is a permutation encoded in
+<span class="math inline">\(n \log_2 n\)</span> bits; for moderate <span
+class="math inline">\(n\)</span> this is dominated by the signature.</p>
+<h2 id="proof-sizes">7.2 Proof sizes</h2>
+<p>Per-chain inclusion proof for a chain of <span
+class="math inline">\(t\)</span> leaves: <span
+class="math inline">\(\lceil \log_2 t \rceil\)</span> siblings of <span
+class="math inline">\(\ell\)</span> bits each, plus <span
+class="math inline">\(\lceil \log_2 t \rceil\)</span> direction bits.
+For <span class="math inline">\(t = 10^6\)</span> and <span
+class="math inline">\(\ell = 256\)</span>:</p>
+<p><span class="math display">\[
+20 \cdot 32 \text{ bytes} + 20 \text{ bits} \approx \mathbf{640 \text{
+bytes}}.
+\]</span></p>
+<p>Forest inclusion proof for <span class="math inline">\(n\)</span>
+chains: <span class="math inline">\(\lceil \log_2 n \rceil\)</span>
+siblings, identically to Section 7.2. For <span class="math inline">\(n
+= 1024\)</span> chains: about <span class="math inline">\(10 \cdot 32 =
+320\)</span> bytes.</p>
+<p>End-to-end verifier work to anchor a single record into a forest
+root: one chain inclusion proof + one forest inclusion proof + one
+operator signature verification. For <span class="math inline">\(t =
+10^6, n = 1024, \ell = 256\)</span>, total proof bytes excluding the
+signature: <span class="math inline">\(\approx 960\)</span> bytes.</p>
+<p>ZK proof sizes (Section 6) depend on the SNARK; rough current
+numbers:</p>
+<table>
+<thead>
+<tr>
+<th>System</th>
+<th>Inclusion proof size</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Groth16</td>
+<td>~200 bytes</td>
+<td>circuit-specific setup</td>
+</tr>
+<tr>
+<td>PLONK</td>
+<td>~400 bytes</td>
+<td>universal setup</td>
+</tr>
+<tr>
+<td>STARK (uncompressed)</td>
+<td>50–200 KB</td>
+<td>transparent, post-quantum</td>
+</tr>
+<tr>
+<td>STARK + Groth16 wrapper</td>
+<td>~300 bytes</td>
+<td>hybrid</td>
+</tr>
+</tbody>
+</table>
+<p>These figures track 2025–2026 reported numbers and should be
+re-checked against current implementations before being cited.</p>
+<h2 id="asymptotic-summary">7.3 Asymptotic summary</h2>
+<table>
+<colgroup>
+<col style="width: 62%" />
+<col style="width: 37%" />
+</colgroup>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Cost</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Append a record (chain owner)</td>
+<td><span class="math inline">\(O(\log t)\)</span> hash evals</td>
+</tr>
+<tr>
+<td>Build epoch forest root (operator)</td>
+<td><span class="math inline">\(O(n)\)</span> hash evals</td>
+</tr>
+<tr>
+<td>Per-chain inclusion proof</td>
+<td><span class="math inline">\(O(\log t)\)</span> hashes</td>
+</tr>
+<tr>
+<td>Forest inclusion proof</td>
+<td><span class="math inline">\(O(\log n)\)</span> hashes</td>
+</tr>
+<tr>
+<td>Verifier work for one record</td>
+<td><span class="math inline">\(O(\log t + \log n)\)</span> hashes + 1
+sig vfy</td>
+</tr>
+<tr>
+<td>Storage per record</td>
+<td><span class="math inline">\(O(\ell + \lambda)\)</span> bits</td>
+</tr>
+<tr>
+<td>Storage per chain (frontier)</td>
+<td><span class="math inline">\(O(\ell \log t)\)</span> bits</td>
+</tr>
+</tbody>
+</table>
+<h1 id="discussion-and-limitations">8. Discussion and Limitations</h1>
+<p><strong>Liveness.</strong> The operator is a single point of liveness
+failure for forest publication. Practical deployments mitigate this
+with: a threshold-signed operator role (an <span
+class="math inline">\(m\)</span>-of-<span
+class="math inline">\(n\)</span> committee), anchoring forest tuples to
+an external append-only log (a public blockchain or a transparency log à
+la RFC 6962), and SLA-driven redundancy. None of these strengthen the
+cryptographic guarantees of Theorems 1–4; they strengthen the
+operational availability around them.</p>
+<p><strong>Metadata leakage.</strong> The architecture hides payload
+contents but does not hide <em>that</em> a chain produced a record at a
+given epoch, nor does it hide chain identifiers. Applications requiring
+metadata privacy must compose the architecture with a mixing or
+anonymisation layer.</p>
+<p><strong>Quantum adversaries.</strong> All four theorems are stated
+for PPT adversaries. Under a quantum adversary, EUF-CMA of classical
+signatures and CR of classical hashes both degrade, but at different
+rates: Grover gives a square-root speedup against CR (effectively
+halving the security level in bits), while Shor breaks classical
+discrete-log signatures. Migrating to a post-quantum signature
+(Dilithium, FALCON) and a hash with <span
+class="math inline">\(2\lambda\)</span> output bits restores
+classical-equivalent security.</p>
+<p><strong>Small-message space attacks.</strong> If a chain owner
+commits to messages drawn from a known small set (e.g., booleans), an
+adversary cannot <em>open</em> a commitment but can guess. The hiding
+property is unaffected - guessing is exactly the brute-force channel
+hiding makes indistinguishable from random - but applications should pad
+messages to a domain-appropriate length before committing.</p>
+<p><strong>Forward integrity under operator key rotation.</strong> If
+the operator rotates its signing key at epoch <span
+class="math inline">\(e^*\)</span>, all forest tuples at epochs <span
+class="math inline">\(\leq e^*\)</span> remain verifiable under the old
+key. Anchoring the key-rotation event itself in a transparency log
+preserves forward integrity.</p>
+<h1 id="related-work">9. Related Work</h1>
+<p>The components are individually well-studied:</p>
+<ul>
+<li><strong>Hash commitments</strong> are folklore; the standard
+treatment under the random oracle model goes back to Damgård’s
+surveys.</li>
+<li><strong>Pedersen commitments</strong> [Pedersen 1991] give
+information-theoretic hiding and computational binding under discrete
+log; they are the alternative when hiding must hold against unbounded
+adversaries.</li>
+<li><strong>Merkle trees</strong> [Merkle 1987] underpin every modern
+transparency and ledger system; RFC 6962 (Certificate Transparency) and
+RFC 9162 formalise the consistency- and inclusion-proof structure for
+append-only logs.</li>
+<li><strong>Incremental Merkle trees</strong> are the standard data
+structure for Zcash’s Sapling/Orchard note commitment trees and the
+Ethereum Deposit Contract; Cassez (2021) gives a Dafny-verified
+correctness proof of the IMT algorithm used in Ethereum.</li>
+<li><strong>Poseidon and Poseidon2</strong> [Grassi et al. 2021, Grassi
+et al. 2023] are the SNARK-friendly hashes used in modern proof systems;
+the reduction to CR carries over with the underlying assumptions of the
+Poseidon analysis.</li>
+<li><strong>PLONK</strong> [Gabizon, Williamson, Ciobotaru 2019]
+provides the universal-setup SNARK most commonly used in our setting;
+STARKs [Ben-Sasson et al.] provide a transparent, post-quantum-friendly
+alternative.</li>
+</ul>
+<p>The contribution of this paper is the <em>composition</em> of these
+primitives into a forest architecture with a cohesive set of security
+theorems, and an honest accounting of what is and is not proved.</p>
+<h1 id="conclusion">10. Conclusion</h1>
+<p>We have specified a three-layer architecture for transparent yet
+confidential versioned chains, given precise definitions of each layer,
+and proved four security theorems (binding, hiding, per-chain inclusion
+soundness, cross-chain binding) under standard assumptions. We have
+given exact storage and proof-size formulas, corrected arithmetic errors
+that appear in informal write-ups, and described an optional
+zero-knowledge layer with a clean composition story.</p>
+<p>The architecture is implementable with off-the-shelf primitives. Its
+strengths are clarity of trust boundaries, modular swapping of hash and
+signature primitives, and logarithmic proof sizes at both the chain and
+forest levels. Its limitations - operator liveness, metadata leakage,
+key-rotation handling - are explicitly listed and amenable to standard
+mitigations.</p>
+<h1 id="appendix-a.-worked-example">Appendix A. Worked Example</h1>
+<p>We illustrate the construction with a tiny instance: two chains, four
+records each, one epoch.</p>
+<p>Let <span class="math inline">\(\mathsf{Hash} =
+\mathrm{SHA\text{-}256}\)</span> truncated to <span
+class="math inline">\(\ell = 64\)</span> bits for display purposes
+(production deployments use full <span class="math inline">\(\ell =
+256\)</span>).</p>
+<p><strong>Chain <span class="math inline">\(A\)</span>.</strong>
+Records <span class="math inline">\(m^A_1, m^A_2, m^A_3, m^A_4\)</span>
+with blinding factors <span class="math inline">\(r^A_1, \ldots,
+r^A_4\)</span>. The chain owner computes:</p>
+<ul>
+<li><span class="math inline">\(C^A_i :=
+\mathsf{Hash}(\mathtt{&quot;cmt&quot;} \| m^A_i \| r^A_i)\)</span> for
+<span class="math inline">\(i = 1..4\)</span>.</li>
+<li><span class="math inline">\(\mathsf{leaf}^A_i :=
+\mathsf{Hash}(\mathtt{&quot;leaf&quot;} \| i \| C^A_i \|
+\mathsf{prev}^A_i)\)</span>.</li>
+<li>IMT pairs: <span class="math inline">\(L^A_{12} :=
+\mathsf{node}(\mathsf{leaf}^A_1,
+\mathsf{leaf}^A_2)\)</span>, <span class="math inline">\(L^A_{34} :=
+\mathsf{node}(\mathsf{leaf}^A_3, \mathsf{leaf}^A_4)\)</span>.</li>
+<li>Chain root: <span class="math inline">\(R^A :=
+\mathsf{node}(L^A_{12}, L^A_{34})\)</span>.</li>
+</ul>
+<p><strong>Chain <span class="math inline">\(B\)</span>.</strong> Same
+procedure yields <span class="math inline">\(R^B\)</span>.</p>
+<p><strong>Forest at epoch 1.</strong> Suppose the deterministic
+ordering gives <span class="math inline">\(\sigma = (A, B)\)</span>.
+Then <span class="math inline">\(F_1 := \mathsf{node}(R^A,
+R^B)\)</span>, padded to a 2-chain tree (no padding needed since <span
+class="math inline">\(n = 2\)</span>).</p>
+<p><strong>Operator publication.</strong> <span
+class="math inline">\((1, F_1, (A,B))\)</span> signed by the
+operator.</p>
+<p><strong>Verifier checks inclusion of record 3 in chain <span
+class="math inline">\(A\)</span>.</strong> Receives:</p>
+<ul>
+<li>Operator-signed <span class="math inline">\((1, F_1, (A,B))\)</span>
+plus signature <span class="math inline">\(\varsigma_1\)</span>.</li>
+<li>Forest path: <span class="math inline">\(R^B\)</span> (sibling),
+direction bit “left” (since <span class="math inline">\(A\)</span> is
+first in <span class="math inline">\(\sigma\)</span>).</li>
+<li>Chain-<span class="math inline">\(A\)</span> inclusion: <span
+class="math inline">\(\mathsf{leaf}^A_3\)</span>, <span
+class="math inline">\(C^A_3\)</span>, <span class="math inline">\(r^A_3,
+m^A_3\)</span> for opening, sibling <span
+class="math inline">\(\mathsf{leaf}^A_4\)</span> at level 0, sibling
+<span class="math inline">\(L^A_{12}\)</span> at level 1.</li>
+</ul>
+<p>Verifier:</p>
+<ol type="1">
+<li>Checks <span class="math inline">\(\varsigma_1\)</span> against
+<span class="math inline">\(pk_{\mathsf{op}}\)</span>.</li>
+<li>Recomputes <span class="math inline">\(C^A_3 =
+\mathsf{Hash}(\mathtt{&quot;cmt&quot;} \| m^A_3 \| r^A_3)\)</span>.</li>
+<li>Recomputes <span class="math inline">\(\mathsf{leaf}^A_3 =
+\mathsf{Hash}(\mathtt{&quot;leaf&quot;} \| 3
+\| C^A_3 \| \mathsf{prev}^A_3)\)</span>.</li>
+<li>Folds path: <span class="math inline">\(L&#39;_{34} :=
+\mathsf{node}(\mathsf{leaf}^A_3,
+\mathsf{leaf}^A_4)\)</span>; <span class="math inline">\(R&#39;^A :=
+\mathsf{node}(L^A_{12}, L&#39;_{34})\)</span>; <span
+class="math inline">\(F&#39;_1 := \mathsf{node}(R&#39;^A,
+R^B)\)</span>.</li>
+<li>Checks <span class="math inline">\(F&#39;_1 = F_1\)</span>.</li>
+</ol>
+<p>All five checks succeed iff the disclosed opening is valid.</p>
+<h1 id="appendix-b.-implementation-checklist">Appendix B. Implementation
+checklist</h1>
+<ol type="1">
+<li>Pick <span class="math inline">\(\mathsf{Hash}\)</span> (SHA-256 for
+software, Poseidon2 for SNARK circuits) and instantiate domain
+separators <span class="math inline">\(\mathtt{&quot;cmt&quot;},
+\mathtt{&quot;leaf&quot;}, \mathtt{&quot;node&quot;},
+\mathtt{&quot;chain-id&quot;}\)</span> as distinct tagged byte
+strings.</li>
+<li>Implement the commitment routine of Section 4.1.</li>
+<li>Implement the IMT of Section 4.2 with append, root, inclusion proof,
+and verify.</li>
+<li>Implement the binary Merkle root of Section 4.3 -
+<strong>not</strong> a hash chain.</li>
+<li>Choose and integrate a signature scheme <span
+class="math inline">\(\Sigma\)</span> (Ed25519 for software; consider
+Dilithium for post-quantum).</li>
+<li>Choose a publication channel for forest tuples (transparency log,
+blockchain anchor, signed bulletin).</li>
+<li>Optional: select a SNARK system and implement the three circuits of
+Section 6 sharing the chosen <span
+class="math inline">\(\mathsf{Hash}\)</span> as the in-circuit
+hash.</li>
+<li>Test vectors: produce known-answer tests for each algorithm before
+deployment.</li>
+<li>Run negative tests: attempt to validate proofs with substituted
+leaves, reordered chains, forged operator signatures, and
+collision-attempt hashes; confirm rejection in each case.</li>
+</ol>
+<h1 id="references">References</h1>
+<p>Ben-Sasson, E., Bentov, I., Horesh, Y., Riabzev, M. “Scalable,
+transparent, and post-quantum secure computational integrity.” IACR
+ePrint 2018/046.</p>
+<p>Cassez, F. “Verification of the Incremental Merkle Tree Algorithm
+with Dafny.” arXiv:2105.06009, 2021.</p>
+<p>Gabizon, A., Williamson, Z., Ciobotaru, O. “PLONK: Permutations over
+Lagrange-bases for Oecumenical Noninteractive arguments of Knowledge.”
+IACR ePrint 2019/953.</p>
+<p>Grassi, L., Khovratovich, D., Rechberger, C., Roy, A., Schofnegger,
+M. “Poseidon: A New Hash Function for Zero-Knowledge Proof Systems.”
+USENIX Security 2021.</p>
+<p>Grassi, L., Khovratovich, D., Schofnegger, M. “Poseidon2: A Faster
+Version of the Poseidon Hash Function.” IACR ePrint 2023/323.</p>
+<p>Groth, J. “On the Size of Pairing-Based Non-interactive Arguments.”
+EUROCRYPT 2016.</p>
+<p>Laurie, B., Langley, A., Käsper, E. “Certificate Transparency.” RFC
+6962, 2013.</p>
+<p>Laurie, B., Messeri, E., Stradling, R. “Certificate Transparency
+Version 2.0.” RFC 9162, 2021.</p>
+<p>Merkle, R. “A Digital Signature Based on a Conventional Encryption
+Function.” CRYPTO 1987.</p>
+<p>Pedersen, T.P. “Non-Interactive and Information-Theoretic Secure
+Verifiable Secret Sharing.” CRYPTO 1991.</p>
+</body>
+</html>

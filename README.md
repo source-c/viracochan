@@ -326,3 +326,9 @@ Run with race detection:
 ```bash
 go test -race ./...
 ```
+
+## Docs compilation
+
+```bash
+pandoc merkle-forest-privacy.md -s -o merkle-forest-privacy.html --mathjax
+```
